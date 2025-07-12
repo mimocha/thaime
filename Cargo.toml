@@ -1,0 +1,18 @@
+[package]
+name = "thaime"
+version = "0.1.0"
+edition = "2024"
+authors = ["mimocha <chawit.leosrisook@outlook.com>"]
+license = "GPL-3.0-or-later"
+repository = "https://github.com/mimocha/thaime"
+
+[[bin]]
+name = "thaime"
+src = "src/main.rs"
+
+[dependencies]
+env_logger = "0.11.8"
+log = "0.4.27"
+tokio = {version = "*", features = ["full"]}
+zbus = {version = "*", default-features = false, features = ["tokio"]}
+zvariant = "5.6.0"
