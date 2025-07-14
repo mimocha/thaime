@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use zbus::{Connection, interface};
+use zbus::{Connection, interface, fdo};
 use zvariant::ObjectPath;
 
 use crate::engine::ThaiEngine;
@@ -14,8 +14,12 @@ pub struct IBusThaiEngine {
 
 #[interface(name = "org.freedesktop.IBus.Engine")]
 impl IBusThaiEngine {
-    pub fn process_key_event(&self, keyval: u32, keycode: u32, modifiers: u32) -> bool {
-        self.engine.process_key_event(keyval, keycode, modifiers)
+    pub fn process_key_event(&self, keyval: u32, keycode: u32, modifiers: u32) -> fdo::Result<bool> {
+        println!("IBus process_key_event called: keyval={}, keycode={}, modifiers={}", 
+                 keyval, keycode, modifiers);
+        
+        let result = self.engine.process_key_event(keyval, keycode, modifiers);
+        Ok(result)
     }
     
     // Minimal required IBus Engine methods
@@ -46,13 +50,15 @@ impl IBusThaiEngine {
 
 // Function to register the IBus component
 pub async fn register_ibus_engine(connection: &Connection) -> zbus::Result<()> {
+    println!("Registering Thaime engine with IBus...");
+
     let engine = Arc::new(ThaiEngine::new());
     let thai_engine = IBusThaiEngine::new(engine);
     
     // Export the IBus engine interface
-    let obj_path = ObjectPath
-        ::try_from("/org/freedesktop/IBus/Engine/thaime")
+    let obj_path = ObjectPath::try_from("/org/freedesktop/IBus/Engine/thaime")
         .unwrap();
+
     connection.object_server().at(obj_path, thai_engine).await?;
     
     println!("Thaime engine registered with IBus");
