@@ -50,10 +50,11 @@ pub async fn register_ibus_engine(connection: &Connection) -> zbus::Result<()> {
     let thai_engine = IBusThaiEngine::new(engine);
     
     // Export the IBus engine interface
-    let obj_path = ObjectPath::try_from("/org/freedesktop/IBus/Engine/Thai")
+    let obj_path = ObjectPath
+        ::try_from("/org/freedesktop/IBus/Engine/thaime")
         .unwrap();
     connection.object_server().at(obj_path, thai_engine).await?;
     
-    println!("Thai IME engine registered with IBus");
+    println!("Thaime engine registered with IBus");
     Ok(())
 }
