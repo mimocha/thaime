@@ -68,12 +68,12 @@ class Engine(IBus.Engine):
         
         # For demonstration, we'll handle a few specific keys
         if keyval in range(ord('a'), ord('z') + 1):  # lowercase letters
-            if state & (IBus.ModifierType.CONTROL_MASK | IBus.ModifierType.ALT_MASK) == 0:
+            if state & (IBus.ModifierType.CONTROL_MASK | IBus.ModifierType.MOD1_MASK) == 0:
                 self.logger.info(f"Handling letter: {chr(keyval)}")
                 # For demo purposes, just pass through - a real IME would do transformation
                 return False  # Let the system handle it normally
         elif keyval in range(ord('A'), ord('Z') + 1):  # uppercase letters
-            if state & (IBus.ModifierType.CONTROL_MASK | IBus.ModifierType.ALT_MASK) == 0:
+            if state & (IBus.ModifierType.CONTROL_MASK | IBus.ModifierType.MOD1_MASK) == 0:
                 self.logger.info(f"Handling uppercase letter: {chr(keyval)}")
                 return False  # Let the system handle it normally
         elif keyval in range(ord('0'), ord('9') + 1):  # numbers
