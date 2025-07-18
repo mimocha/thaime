@@ -1,22 +1,9 @@
 # Thaime Python IBus IME Implementation
 
-This directory contains a Python implementation of a dummy Input Method Engine (IME) that interfaces with IBus for Thai language input. The implementation is based on the ibus-tmpl template and focuses on minimal functionality with comprehensive keystroke logging.
+This directory contains a Python implementation of an Input Method Engine (IME) that interfaces with IBus for Thai language input.
+The implementation is based on the Python [ibus-tmpl template](https://github.com/phuang/ibus-tmpl).
 
-## Success Criteria ✅
-
-All success criteria have been met:
-
-- ✅ **Python code runs without error**: All modules import successfully and execute without exceptions
-- ✅ **IME is registered properly with IBus**: Engine appears in `ibus list-engine` output
-- ✅ **IME can be selected via ibus-setup CLI**: Engine can be activated with `ibus engine thaime-python`
-- ✅ **IME does not freeze when selected**: Engine runs continuously and responds to events
-- ✅ **Keystrokes are logged through the IME**: Comprehensive logging of all key events with detailed information
-
-## Architecture
-
-The implementation consists of several key components:
-
-### Files
+## Files
 
 - **`main.py`**: Main entry point with IBus component registration and event loop
 - **`engine.py`**: Core IME engine with keystroke processing and logging
@@ -24,28 +11,31 @@ The implementation consists of several key components:
 - **`thaime-python.xml`**: IBus component configuration file
 - **`ibus-engine-thaime-python`**: Executable launcher script
 
-### Key Features
-
-- **Comprehensive Keystroke Logging**: Logs all key events with keyval, keycode, modifier states, and character representation
-- **IBus Integration**: Full IBus Engine interface implementation with proper focus/reset handling
-- **Minimal Processing**: Passes through all keystrokes to demonstrate basic IME functionality
-- **Error Handling**: Robust error handling and logging throughout the codebase
-
 ## Setup Requirements
 
-### System Dependencies
+### Install System Dependencies
+
+Install IBus, Python IBus binding, and GObject Introspection bindings
+
+**Ubuntu:**
 
 ```bash
-# Install IBus and Python bindings
 sudo apt update
 sudo apt install -y ibus ibus-gtk3 python3-gi gir1.2-ibus-1.0 libibus-1.0-dev
 ```
 
+**Fedora:**
+
+```bash
+sudo dnf update
+sudo dnf install -y ibus ibus-devel ibus-gtk3 gobject-introspection gobject-introspection-devel python3-gobject-base python3-gobject-devel
+```
+
 ### Installation Steps
 
-1. **Copy component configuration**:
+1. **Copy component configuration for IBus**:
    ```bash
-   sudo cp thaime-python.xml /usr/share/ibus/component/
+   sudo cp python-engine/thaime-python.xml /usr/share/ibus/component/
    ```
 
 2. **Make launcher executable**:
@@ -55,7 +45,7 @@ sudo apt install -y ibus ibus-gtk3 python3-gi gir1.2-ibus-1.0 libibus-1.0-dev
 
 3. **Start or restart IBus daemon**:
    ```bash
-   ibus-daemon --xim --verbose
+   ibus-daemon -drxv
    ```
 
 4. **Verify registration**:
@@ -158,18 +148,12 @@ python3 main.py
 
 ## Development
 
-### Code Structure
+### Documentations
 
-- **Clean separation of concerns**: Main app, factory, and engine logic
-- **Proper IBus interface**: Implements all required IBus Engine methods
-- **Comprehensive logging**: Debug information at all levels
-- **Error resilience**: Graceful error handling and recovery
+Find the IBus documentations from here:
+- [github/ibus/wiki](https://github.com/ibus/ibus/wiki)
+- [IBus Python Docs](https://lazka.github.io/pgi-docs/#IBus-1.0)
+- [IBus C Docs](https://ibus.github.io/docs/ibus-1.5/index.html)
 
-### Testing
-
-The implementation includes:
-- **Unit testing**: Isolated testing of engine functionality
-- **Integration testing**: Full IBus integration verification
-- **Manual testing**: Interactive keystroke logging demonstration
-
-This implementation serves as a solid foundation for developing more complex Thai language input functionality while maintaining full IBus compatibility and robust keystroke logging capabilities.
+Find relevant GNOME Python API (GLib) documentations from here:
+- [Pygobject](https://api.pygobject.gnome.org/)

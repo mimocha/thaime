@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Test script to demonstrate the keystroke logging functionality of the Thaime Python IME.
 This script simulates key events to show that the engine properly logs keystrokes.
@@ -7,6 +5,7 @@ This script simulates key events to show that the engine properly logs keystroke
 
 import sys
 import os
+import logging
 
 # Add the python-engine directory to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'python-engine'))
@@ -15,7 +14,6 @@ import gi
 gi.require_version('IBus', '1.0')
 from gi.repository import IBus
 from gi.repository import GLib
-import logging
 
 import engine
 

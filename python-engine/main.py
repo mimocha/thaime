@@ -1,36 +1,15 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-#
-# thaime - Thai Input Method Engine
-#
-# Copyright (c) 2024 mimocha <chawit.leosrisook@outlook.com>
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 3, or (at your option)
-# any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-
-import os
-import sys
 import getopt
 import locale
 import logging
+import os
+import sys
 
 import gi
 gi.require_version('IBus', '1.0')
-from gi.repository import IBus
-from gi.repository import GLib
 
 import factory
+from gi.repository import GLib, IBus
+
 
 class IMApp:
     def __init__(self, exec_by_ibus):
@@ -45,11 +24,10 @@ class IMApp:
         # Create IBus component
         self.__component = IBus.Component(
             name="org.freedesktop.IBus.ThaimePython",
-            description="Thaime Python Component",
-            version="0.1.0",
+            description="Thaime Python Engine",
+            version="0.1.1",
             license="GPL-3.0-or-later",
             author="mimocha <chawit.leosrisook@outlook.com>",
-            homepage="https://github.com/mimocha/thaime",
             command_line="",
             textdomain="thaime"
         )
@@ -80,7 +58,7 @@ class IMApp:
             self.__bus.request_name("org.freedesktop.IBus.ThaimePython", 0)
         else:
             self.__bus.register_component(self.__component)
-            
+        
         self.logger.info("Thaime Python IME initialized")
 
     def run(self):

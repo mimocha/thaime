@@ -1,21 +1,11 @@
 #!/bin/bash
-# -*- coding: utf-8 -*-
-#
-# setup.sh - Installation script for Thaime Python IBus IME
-#
-# Copyright (c) 2024 mimocha <chawit.leosrisook@outlook.com>
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 3, or (at your option)
-# any later version.
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COMPONENT_DIR="/usr/share/ibus/component"
 
-echo "Thaime Python IBus IME Setup"
+echo "Thaime Python IBus Setup"
 echo "============================="
 
 # Check if running as root for system installation
@@ -28,7 +18,7 @@ else
     COMPONENT_DIR="$HOME/.local/share/ibus/component"
 fi
 
-# Install dependencies
+# Install dependencies (Ubuntu / Debian)
 echo "1. Installing system dependencies..."
 if command -v apt >/dev/null 2>&1; then
     if [[ $USER_MODE == false ]]; then
@@ -89,7 +79,7 @@ echo "Installation completed successfully!"
 echo ""
 echo "Next steps:"
 echo "1. Restart IBus daemon:"
-echo "   ibus restart"
+echo "   ibus-daemon -drx"
 echo ""
 echo "2. Verify engine registration:"
 echo "   ibus list-engine | grep thaime"
@@ -98,6 +88,6 @@ echo "3. Select the engine:"
 echo "   ibus engine thaime-python"
 echo ""
 echo "4. Test keystroke logging:"
-echo "   cd $SCRIPT_DIR && python3 ../test_ime_functionality.py"
+echo "   cd $SCRIPT_DIR && python test_ime_functionality.py"
 echo ""
 echo "The engine is now ready to use!"
