@@ -1,8 +1,10 @@
 use std::sync::Arc;
+use log::{info, debug, warn};
 use zbus::{Connection, interface, fdo};
-use zvariant::ObjectPath;
+use zvariant::{ObjectPath, Value};
 
 use crate::engine::ThaiEngine;
+use crate::factory::IBusEngineFactory;
 
 // The IBus engine implementation that connects to dbus
 pub struct IBusThaiEngine {
@@ -14,28 +16,60 @@ pub struct IBusThaiEngine {
 
 #[interface(name = "org.freedesktop.IBus.Engine")]
 impl IBusThaiEngine {
+    // Core key processing method
+    #[zbus(name = "ProcessKeyEvent")]
     pub fn process_key_event(&self, keyval: u32, keycode: u32, modifiers: u32) -> fdo::Result<bool> {
-        println!("IBus process_key_event called: keyval={}, keycode={}, modifiers={}", 
+        info!("=== Engine: process_key_event called: keyval={}, keycode={}, modifiers={} ===", 
                  keyval, keycode, modifiers);
         
         let result = self.engine.process_key_event(keyval, keycode, modifiers);
+        info!("=== Engine: process_key_event returning: {} ===", result);
         Ok(result)
     }
     
-    // Minimal required IBus Engine methods
-    pub fn set_cursor_location(&self, _x: i32, _y: i32, _w: i32, _h: i32) {}
-    pub fn set_surrounding_text(&self, _text: &str, _cursor_pos: u32, _anchor_pos: u32) {}
-    pub fn set_content_type(&self, _purpose: u32, _hints: u32) {}
-    pub fn reset(&self) {}
-    pub fn focus_in(&self) {}
-    pub fn focus_out(&self) {}
-    pub fn enable(&self) {}
-    pub fn disable(&self) {}
-    pub fn page_up(&self) {}
-    pub fn page_down(&self) {}
-    pub fn cursor_up(&self) {}
-    pub fn cursor_down(&self) {}
-    pub fn property_activate(&self, _prop_name: &str, _prop_state: u32) {}
+    // Essential lifecycle methods that IBus expects
+    #[zbus(name = "Enable")]
+    pub fn enable(&self) -> fdo::Result<()> {
+        info!("=== Engine: enable called ===");
+        Ok(())
+    }
+    
+    #[zbus(name = "Disable")]
+    pub fn disable(&self) -> fdo::Result<()> {
+        info!("=== Engine: disable called ===");
+        Ok(())
+    }
+    
+    #[zbus(name = "FocusIn")]
+    pub fn focus_in(&self) -> fdo::Result<()> {
+        info!("=== Engine: focus_in called ===");
+        Ok(())
+    }
+    
+    #[zbus(name = "FocusOut")]
+    pub fn focus_out(&self) -> fdo::Result<()> {
+        info!("=== Engine: focus_out called ===");
+        Ok(())
+    }
+    
+    #[zbus(name = "Reset")]
+    pub fn reset(&self) -> fdo::Result<()> {
+        info!("=== Engine: reset called ===");
+        Ok(())
+    }
+    
+    // Other methods that might be called
+    #[zbus(name = "SetCursorLocation")]
+    pub fn set_cursor_location(&self, _x: i32, _y: i32, _w: i32, _h: i32) -> fdo::Result<()> {
+        debug!("=== Engine: set_cursor_location called ===");
+        Ok(())
+    }
+    
+    #[zbus(name = "SetCapabilities")]
+    pub fn set_capabilities(&self, _caps: u32) -> fdo::Result<()> {
+        debug!("=== Engine: set_capabilities called ===");
+        Ok(())
+    }
 }
 
 impl IBusThaiEngine {
@@ -49,18 +83,102 @@ impl IBusThaiEngine {
 }
 
 // Function to register the IBus component
-pub async fn register_ibus_engine(connection: &Connection) -> zbus::Result<()> {
-    println!("Registering Thaime engine with IBus...");
-
-    let engine = Arc::new(ThaiEngine::new());
-    let thai_engine = IBusThaiEngine::new(engine);
+pub async fn register_ibus_component(connection: &Connection, exec_by_ibus: bool) -> zbus::Result<()> {
+    info!("Registering Thaime component with IBus (exec_by_ibus: {})...", exec_by_ibus);
     
-    // Export the IBus engine interface
-    let obj_path = ObjectPath::try_from("/org/freedesktop/IBus/Engine/thaime")
-        .unwrap();
-
-    connection.object_server().at(obj_path, thai_engine).await?;
+    let connection_arc = Arc::new(connection.clone());
     
-    println!("Thaime engine registered with IBus");
+    if exec_by_ibus {
+        info!("Running in IBus mode - registering factory and requesting bus name");
+        
+        // Register the factory at the standard IBus factory path
+        let factory = IBusEngineFactory::new(connection_arc.clone());
+        let factory_path = ObjectPath::try_from("/org/freedesktop/IBus/Factory").unwrap();
+        connection.object_server().at(factory_path.clone(), factory).await?;
+        info!("Factory registered at: {}", factory_path);
+        
+        // Request the bus name that matches our component
+        let bus_name = "org.freedesktop.IBus.ThaimaRust";
+        match connection.request_name(bus_name).await {
+            Ok(reply) => info!("Successfully requested bus name: {} with reply: {:?}", bus_name, reply),
+            Err(e) => {
+                // Check if the error is "name already taken" - this might be expected during testing
+                let error_msg = format!("{}", e);
+                if error_msg.contains("already taken") || error_msg.contains("exists") {
+                    warn!("Bus name {} is already taken - this might be expected if another instance is running", bus_name);
+                    info!("Continuing anyway as this is not necessarily fatal");
+                } else {
+                    warn!("Failed to request bus name {}: {}", bus_name, e);
+                    return Err(e);
+                }
+            }
+        }
+        
+        // Give IBus some time to recognize our service
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+        
+    } else {
+        info!("Running in registration mode - registering component with IBus daemon");
+        
+        // Create a proxy to the IBus service
+        let ibus_proxy = zbus::Proxy::new(
+            connection,
+            "org.freedesktop.IBus",
+            "/org/freedesktop/IBus",
+            "org.freedesktop.IBus",
+        ).await?;
+        
+        info!("Connected to IBus daemon");
+        
+        // Create the component description using the expected IBus format
+        let component_data = create_component_description();
+        
+        // Register the component with IBus
+        let result: Result<(), zbus::Error> = ibus_proxy.call("RegisterComponent", &(component_data,)).await;
+        match result {
+            Ok(_) => info!("Successfully registered component with IBus daemon"),
+            Err(e) => {
+                warn!("Failed to register component with IBus daemon: {}", e);
+                // Don't return error here - IBus might not be running yet
+                info!("Component registration attempted - IBus daemon may not be running");
+            }
+        }
+    }
+    
+    info!("IBus component registration completed");
     Ok(())
+}
+
+// Create the component description in the format expected by IBus
+fn create_component_description() -> Value<'static> {
+    use std::collections::HashMap;
+    
+    // Create component description as a HashMap
+    let mut component = HashMap::new();
+    
+    component.insert("name".to_string(), Value::from("org.freedesktop.IBus.ThaimaRust"));
+    component.insert("description".to_string(), Value::from("Thaime Rust Engine"));
+    component.insert("version".to_string(), Value::from("0.1.0"));
+    component.insert("license".to_string(), Value::from("GPL-3.0-or-later"));
+    component.insert("author".to_string(), Value::from("mimocha <chawit.leosrisook@outlook.com>"));
+    component.insert("exec".to_string(), Value::from("/usr/local/bin/thaime --ibus"));
+    component.insert("textdomain".to_string(), Value::from("thaime"));
+    
+    // Create engine descriptions
+    let mut engine = HashMap::new();
+    engine.insert("name".to_string(), Value::from("thaime-rust"));
+    engine.insert("longname".to_string(), Value::from("Thai (thaime-rust)"));
+    engine.insert("description".to_string(), Value::from("Thai Input Method Engine (Rust)"));
+    engine.insert("language".to_string(), Value::from("th"));
+    engine.insert("license".to_string(), Value::from("GPL-3.0-or-later"));
+    engine.insert("author".to_string(), Value::from("mimocha <chawit.leosrisook@outlook.com>"));
+    engine.insert("icon".to_string(), Value::from(""));
+    engine.insert("layout".to_string(), Value::from("th"));
+    engine.insert("rank".to_string(), Value::from(99u32));
+    
+    // Add engines array to component
+    let engines = vec![Value::from(engine)];
+    component.insert("engines".to_string(), Value::from(engines));
+    
+    Value::from(component)
 }

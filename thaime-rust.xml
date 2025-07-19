@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component>
+    <name>org.freedesktop.IBus.ThaimaRust</name>
+    <description>Thaime Rust Engine</description>
+    <exec>/usr/local/bin/thaime --ibus</exec>
+    <version>0.1.0</version>
+    <author>mimocha &lt;chawit.leosrisook@outlook.com&gt;</author>
+    <license>GPL-3.0-or-later</license>
+    <textdomain>thaime</textdomain>
+
+    <engines>
+        <engine>
+            <name>thaime-rust</name>
+            <language>th</language>
+            <license>GPL-3.0-or-later</license>
+            <author>mimocha &lt;chawit.leosrisook@outlook.com&gt;</author>
+            <icon></icon>
+            <layout>th</layout>
+            <longname>Thai (thaime-rust)</longname>
+            <description>Thai Input Method Engine (Rust)</description>
+        </engine>
+    </engines>
+</component>
