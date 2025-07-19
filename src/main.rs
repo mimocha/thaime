@@ -3,6 +3,7 @@ mod ibus;
 mod factory;
 
 use clap::Parser;
+use log::info;
 use ibus::register_ibus_component;
 
 #[derive(Parser)]
@@ -46,12 +47,39 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         }
     }
     
-    println!("Thaime initialized. Press Ctrl+C to exit.");
-    
-    // Keep the program running until Ctrl+C
-    match tokio::signal::ctrl_c().await {
-        Ok(()) => println!("Received Ctrl+C, shutting down gracefully."),
-        Err(e) => eprintln!("Error waiting for Ctrl+C: {}", e),
+    if args.ibus {
+        println!("Thaime running in IBus mode. Waiting for IBus requests...");
+        
+        // In IBus mode, keep the service running indefinitely
+        // We need to keep the connection alive and let it process D-Bus messages
+        info!("Starting main service loop...");
+        
+        // Create a future that keeps the connection active
+        let keep_alive = async {
+            // Use the connection's executor to handle incoming requests
+            // This is similar to Python's GLib.MainLoop().run()
+            loop {
+                // Process any pending tasks
+                tokio::task::yield_now().await;
+                
+                // Small sleep to prevent busy waiting
+                tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+            }
+        };
+        
+        // Use select to handle both the keep-alive loop and Ctrl+C
+        tokio::select! {
+            _ = keep_alive => {
+                // This should never complete
+                eprintln!("Keep-alive loop unexpectedly completed");
+            }
+            _ = tokio::signal::ctrl_c() => {
+                println!("Received Ctrl+C, shutting down gracefully.");
+            }
+        }
+    } else {
+        println!("Thaime component registration completed.");
+        // In registration mode, we can exit after registration
     }
     
     Ok(())

@@ -24,7 +24,12 @@ impl IBusThaiEngine {
         Ok(result)
     }
     
-    // Minimal required IBus Engine methods
+    pub fn candidate_clicked(&self, _index: u32, _button: u32, _state: u32) -> fdo::Result<()> {
+        debug!("candidate_clicked called");
+        Ok(())
+    }
+    
+    // Required IBus Engine methods
     pub fn set_cursor_location(&self, _x: i32, _y: i32, _w: i32, _h: i32) -> fdo::Result<()> {
         debug!("set_cursor_location called");
         Ok(())
@@ -89,6 +94,21 @@ impl IBusThaiEngine {
         info!("property_activate called");
         Ok(())
     }
+    
+    pub fn set_capabilities(&self, _caps: u32) -> fdo::Result<()> {
+        debug!("set_capabilities called");
+        Ok(())
+    }
+    
+    pub fn property_show(&self, _prop_name: &str) -> fdo::Result<()> {
+        debug!("property_show called");
+        Ok(())
+    }
+    
+    pub fn property_hide(&self, _prop_name: &str) -> fdo::Result<()> {
+        debug!("property_hide called"); 
+        Ok(())
+    }
 }
 
 impl IBusThaiEngine {
@@ -113,18 +133,22 @@ pub async fn register_ibus_component(connection: &Connection, exec_by_ibus: bool
         // Register the factory at the standard IBus factory path
         let factory = IBusEngineFactory::new(connection_arc.clone());
         let factory_path = ObjectPath::try_from("/org/freedesktop/IBus/Factory").unwrap();
-        connection.object_server().at(factory_path, factory).await?;
-        info!("Factory registered at: /org/freedesktop/IBus/Factory");
+        connection.object_server().at(factory_path.clone(), factory).await?;
+        info!("Factory registered at: {}", factory_path);
         
         // Request the bus name that matches our component
         let bus_name = "org.freedesktop.IBus.ThaimaRust";
         match connection.request_name(bus_name).await {
-            Ok(_) => info!("Successfully requested bus name: {}", bus_name),
+            Ok(reply) => info!("Successfully requested bus name: {} with reply: {:?}", bus_name, reply),
             Err(e) => {
+                // Don't fail completely if the name is already taken - this might be expected during testing
                 warn!("Failed to request bus name {}: {}", bus_name, e);
-                return Err(e);
+                info!("Continuing anyway - this might be expected if another instance is running");
             }
         }
+        
+        // Give IBus some time to recognize our service
+        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
         
     } else {
         info!("Running in registration mode - registering component with IBus daemon");
