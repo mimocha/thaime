@@ -11,6 +11,7 @@ name = "thaime"
 src = "src/main.rs"
 
 [dependencies]
+clap = {version = "4.0", features = ["derive"]}
 env_logger = "0.11.8"
 log = "0.4.27"
 tokio = {version = "*", features = ["full"]}

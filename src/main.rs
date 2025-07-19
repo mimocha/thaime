@@ -1,14 +1,27 @@
 mod engine;
 mod ibus;
+mod factory;
 
-use ibus::register_ibus_engine;
+use clap::Parser;
+use ibus::register_ibus_component;
+
+#[derive(Parser)]
+#[command(name = "thaime")]
+#[command(about = "Thai Input Method Engine")]
+struct Args {
+    /// Run in IBus mode
+    #[arg(long)]
+    ibus: bool,
+}
 
 #[tokio::main]
-async fn main() -> Result<(), Box<zbus::Error>> {
+async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Initialize logging
     env_logger::Builder::from_default_env()
         .filter_level(log::LevelFilter::Debug)
         .init();
+    
+    let args = Args::parse();
     
     println!("Starting Thaime...");
     
@@ -20,15 +33,15 @@ async fn main() -> Result<(), Box<zbus::Error>> {
         }
         Err(e) => {
             eprintln!("Failed to connect to session bus: {}", e);
-            return Err(Box::new(e));
+            return Err(e.into());
         }
     };
     
-    // Register our engine with IBus
-    match register_ibus_engine(&connection).await {
-        Ok(()) => println!("Engine registration successful"),
+    // Register our component with IBus
+    match register_ibus_component(&connection, args.ibus).await {
+        Ok(()) => println!("Component registration successful"),
         Err(e) => {
-            eprintln!("Failed to register engine: {}", e);
+            eprintln!("Failed to register component: {}", e);
             return Err(e.into());
         }
     }
