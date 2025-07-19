@@ -16,97 +16,58 @@ pub struct IBusThaiEngine {
 
 #[interface(name = "org.freedesktop.IBus.Engine")]
 impl IBusThaiEngine {
+    // Core key processing method
+    #[zbus(name = "ProcessKeyEvent")]
     pub fn process_key_event(&self, keyval: u32, keycode: u32, modifiers: u32) -> fdo::Result<bool> {
-        debug!("IBus process_key_event called: keyval={}, keycode={}, modifiers={}", 
+        info!("=== Engine: process_key_event called: keyval={}, keycode={}, modifiers={} ===", 
                  keyval, keycode, modifiers);
         
         let result = self.engine.process_key_event(keyval, keycode, modifiers);
+        info!("=== Engine: process_key_event returning: {} ===", result);
         Ok(result)
     }
     
-    pub fn candidate_clicked(&self, _index: u32, _button: u32, _state: u32) -> fdo::Result<()> {
-        debug!("candidate_clicked called");
-        Ok(())
-    }
-    
-    // Required IBus Engine methods
-    pub fn set_cursor_location(&self, _x: i32, _y: i32, _w: i32, _h: i32) -> fdo::Result<()> {
-        debug!("set_cursor_location called");
-        Ok(())
-    }
-    
-    pub fn set_surrounding_text(&self, _text: &str, _cursor_pos: u32, _anchor_pos: u32) -> fdo::Result<()> {
-        debug!("set_surrounding_text called");
-        Ok(())
-    }
-    
-    pub fn set_content_type(&self, _purpose: u32, _hints: u32) -> fdo::Result<()> {
-        debug!("set_content_type called");
-        Ok(())
-    }
-    
-    pub fn reset(&self) -> fdo::Result<()> {
-        info!("Engine reset called");
-        Ok(())
-    }
-    
-    pub fn focus_in(&self) -> fdo::Result<()> {
-        info!("Engine focus_in called");
-        Ok(())
-    }
-    
-    pub fn focus_out(&self) -> fdo::Result<()> {
-        info!("Engine focus_out called");
-        Ok(())
-    }
-    
+    // Essential lifecycle methods that IBus expects
+    #[zbus(name = "Enable")]
     pub fn enable(&self) -> fdo::Result<()> {
-        info!("Engine enable called");
+        info!("=== Engine: enable called ===");
         Ok(())
     }
     
+    #[zbus(name = "Disable")]
     pub fn disable(&self) -> fdo::Result<()> {
-        info!("Engine disable called");
+        info!("=== Engine: disable called ===");
         Ok(())
     }
     
-    pub fn page_up(&self) -> fdo::Result<()> {
-        debug!("page_up called");
+    #[zbus(name = "FocusIn")]
+    pub fn focus_in(&self) -> fdo::Result<()> {
+        info!("=== Engine: focus_in called ===");
         Ok(())
     }
     
-    pub fn page_down(&self) -> fdo::Result<()> {
-        debug!("page_down called");
+    #[zbus(name = "FocusOut")]
+    pub fn focus_out(&self) -> fdo::Result<()> {
+        info!("=== Engine: focus_out called ===");
         Ok(())
     }
     
-    pub fn cursor_up(&self) -> fdo::Result<()> {
-        debug!("cursor_up called");
+    #[zbus(name = "Reset")]
+    pub fn reset(&self) -> fdo::Result<()> {
+        info!("=== Engine: reset called ===");
         Ok(())
     }
     
-    pub fn cursor_down(&self) -> fdo::Result<()> {
-        debug!("cursor_down called");
+    // Other methods that might be called
+    #[zbus(name = "SetCursorLocation")]
+    pub fn set_cursor_location(&self, _x: i32, _y: i32, _w: i32, _h: i32) -> fdo::Result<()> {
+        debug!("=== Engine: set_cursor_location called ===");
         Ok(())
     }
     
-    pub fn property_activate(&self, _prop_name: &str, _prop_state: u32) -> fdo::Result<()> {
-        info!("property_activate called");
-        Ok(())
-    }
-    
+    #[zbus(name = "SetCapabilities")]
     pub fn set_capabilities(&self, _caps: u32) -> fdo::Result<()> {
-        debug!("set_capabilities called");
-        Ok(())
-    }
-    
-    pub fn property_show(&self, _prop_name: &str) -> fdo::Result<()> {
-        debug!("property_show called");
-        Ok(())
-    }
-    
-    pub fn property_hide(&self, _prop_name: &str) -> fdo::Result<()> {
-        debug!("property_hide called"); 
+        debug!("=== Engine: set_capabilities called ===");
         Ok(())
     }
 }
@@ -141,9 +102,15 @@ pub async fn register_ibus_component(connection: &Connection, exec_by_ibus: bool
         match connection.request_name(bus_name).await {
             Ok(reply) => info!("Successfully requested bus name: {} with reply: {:?}", bus_name, reply),
             Err(e) => {
-                // Don't fail completely if the name is already taken - this might be expected during testing
-                warn!("Failed to request bus name {}: {}", bus_name, e);
-                info!("Continuing anyway - this might be expected if another instance is running");
+                // Check if the error is "name already taken" - this might be expected during testing
+                let error_msg = format!("{}", e);
+                if error_msg.contains("already taken") || error_msg.contains("exists") {
+                    warn!("Bus name {} is already taken - this might be expected if another instance is running", bus_name);
+                    info!("Continuing anyway as this is not necessarily fatal");
+                } else {
+                    warn!("Failed to request bus name {}: {}", bus_name, e);
+                    return Err(e);
+                }
             }
         }
         
