@@ -1,7 +1,7 @@
 use std::sync::Arc;
-use log::{info, debug};
+use log::{info, debug, warn};
 use zbus::{Connection, interface, fdo};
-use zvariant::ObjectPath;
+use zvariant::{ObjectPath, Value};
 
 use crate::engine::ThaiEngine;
 use crate::factory::IBusEngineFactory;
@@ -101,54 +101,35 @@ impl IBusThaiEngine {
     }
 }
 
-// IBus Component interface - this is what registers with the IBus daemon
-pub struct IBusComponent;
-
-#[interface(name = "org.freedesktop.IBus.Component")]
-impl IBusComponent {
-    pub fn get_engines(&self) -> fdo::Result<Vec<(String, String, String, String, String, String, String, String, u32)>> {
-        info!("get_engines called");
-        // Return engine description: (name, longname, description, language, license, author, icon, layout, rank)
-        let engines = vec![(
-            "thaime-rust".to_string(),
-            "Thai (thaime-rust)".to_string(), 
-            "Thai Input Method Engine (Rust)".to_string(),
-            "th".to_string(),
-            "GPL-3.0-or-later".to_string(),
-            "mimocha <chawit.leosrisook@outlook.com>".to_string(),
-            "".to_string(), // icon
-            "th".to_string(), // layout
-            99u32, // rank
-        )];
-        Ok(engines)
-    }
-}
-
 // Function to register the IBus component
 pub async fn register_ibus_component(connection: &Connection, exec_by_ibus: bool) -> zbus::Result<()> {
-    info!("Registering Thaime component with IBus...");
+    info!("Registering Thaime component with IBus (exec_by_ibus: {})...", exec_by_ibus);
     
     let connection_arc = Arc::new(connection.clone());
     
     if exec_by_ibus {
-        info!("Running in IBus mode - registering factory");
+        info!("Running in IBus mode - registering factory and requesting bus name");
         
-        // Register the factory
+        // Register the factory at the standard IBus factory path
         let factory = IBusEngineFactory::new(connection_arc.clone());
         let factory_path = ObjectPath::try_from("/org/freedesktop/IBus/Factory").unwrap();
         connection.object_server().at(factory_path, factory).await?;
+        info!("Factory registered at: /org/freedesktop/IBus/Factory");
         
-        // Request the bus name
-        connection.request_name("org.freedesktop.IBus.ThaimaRust").await?;
+        // Request the bus name that matches our component
+        let bus_name = "org.freedesktop.IBus.ThaimaRust";
+        match connection.request_name(bus_name).await {
+            Ok(_) => info!("Successfully requested bus name: {}", bus_name),
+            Err(e) => {
+                warn!("Failed to request bus name {}: {}", bus_name, e);
+                return Err(e);
+            }
+        }
+        
     } else {
-        info!("Running in registration mode - registering component");
+        info!("Running in registration mode - registering component with IBus daemon");
         
-        // Export the component interface
-        let component = IBusComponent;
-        let component_path = ObjectPath::try_from("/org/freedesktop/IBus/Component").unwrap();
-        connection.object_server().at(component_path, component).await?;
-        
-        // Get IBus daemon proxy and register our component
+        // Create a proxy to the IBus service
         let ibus_proxy = zbus::Proxy::new(
             connection,
             "org.freedesktop.IBus",
@@ -156,24 +137,57 @@ pub async fn register_ibus_component(connection: &Connection, exec_by_ibus: bool
             "org.freedesktop.IBus",
         ).await?;
         
-        // Call RegisterComponent method
-        let component_name = "org.freedesktop.IBus.ThaimaRust";
-        let component_exec = "/usr/local/bin/thaime --ibus";
-        let component_version = "0.1.0";
-        let component_description = "Thaime Rust Engine";
-        let component_author = "mimocha <chawit.leosrisook@outlook.com>";
-        let component_license = "GPL-3.0-or-later";
-        let component_textdomain = "thaime";
+        info!("Connected to IBus daemon");
         
-        // This is a simplified registration - in a full implementation we'd use the XML file
-        let _result: Result<(), zbus::Error> = ibus_proxy.call(
-            "RegisterComponent",
-            &(component_name, component_description, component_version, component_license, component_author, component_exec, component_textdomain),
-        ).await;
+        // Create the component description using the expected IBus format
+        let component_data = create_component_description();
         
-        info!("Component registration attempt completed");
+        // Register the component with IBus
+        let result: Result<(), zbus::Error> = ibus_proxy.call("RegisterComponent", &(component_data,)).await;
+        match result {
+            Ok(_) => info!("Successfully registered component with IBus daemon"),
+            Err(e) => {
+                warn!("Failed to register component with IBus daemon: {}", e);
+                // Don't return error here - IBus might not be running yet
+                info!("Component registration attempted - IBus daemon may not be running");
+            }
+        }
     }
     
-    info!("Thaime component registration process finished");
+    info!("IBus component registration completed");
     Ok(())
+}
+
+// Create the component description in the format expected by IBus
+fn create_component_description() -> Value<'static> {
+    use std::collections::HashMap;
+    
+    // Create component description as a HashMap
+    let mut component = HashMap::new();
+    
+    component.insert("name".to_string(), Value::from("org.freedesktop.IBus.ThaimaRust"));
+    component.insert("description".to_string(), Value::from("Thaime Rust Engine"));
+    component.insert("version".to_string(), Value::from("0.1.0"));
+    component.insert("license".to_string(), Value::from("GPL-3.0-or-later"));
+    component.insert("author".to_string(), Value::from("mimocha <chawit.leosrisook@outlook.com>"));
+    component.insert("exec".to_string(), Value::from("/usr/local/bin/thaime --ibus"));
+    component.insert("textdomain".to_string(), Value::from("thaime"));
+    
+    // Create engine descriptions
+    let mut engine = HashMap::new();
+    engine.insert("name".to_string(), Value::from("thaime-rust"));
+    engine.insert("longname".to_string(), Value::from("Thai (thaime-rust)"));
+    engine.insert("description".to_string(), Value::from("Thai Input Method Engine (Rust)"));
+    engine.insert("language".to_string(), Value::from("th"));
+    engine.insert("license".to_string(), Value::from("GPL-3.0-or-later"));
+    engine.insert("author".to_string(), Value::from("mimocha <chawit.leosrisook@outlook.com>"));
+    engine.insert("icon".to_string(), Value::from(""));
+    engine.insert("layout".to_string(), Value::from("th"));
+    engine.insert("rank".to_string(), Value::from(99u32));
+    
+    // Add engines array to component
+    let engines = vec![Value::from(engine)];
+    component.insert("engines".to_string(), Value::from(engines));
+    
+    Value::from(component)
 }
