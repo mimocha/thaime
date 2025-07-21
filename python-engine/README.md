@@ -1,159 +1,143 @@
-# Thaime Python IBus IME Implementation
+# Thaime Python Engine
 
-This directory contains a Python implementation of an Input Method Engine (IME) that interfaces with IBus for Thai language input.
-The implementation is based on the Python [ibus-tmpl template](https://github.com/phuang/ibus-tmpl).
+A Python-based IBus Input Method Engine (IME) with three input modes for different typing needs.
 
-## Files
+## Features
 
-- **`main.py`**: Main entry point with IBus component registration and event loop
-- **`engine.py`**: Core IME engine with keystroke processing and logging
-- **`factory.py`**: Engine factory for creating engine instances
-- **`thaime-python.xml`**: IBus component configuration file
-- **`ibus-engine-thaime-python`**: Executable launcher script
+### Three Input Modes
 
-## Setup Requirements
+1. **Latin Mode** (`thaime-python-latin`)
+   - Standard QWERTY keyboard passthrough
+   - For normal English/Latin text input
+   - Layout: US
 
-### Install System Dependencies
+2. **Thai-Kedmanee Mode** (`thaime-python-kedmanee`)
+   - QWERTY to Thai character conversion
+   - Uses standard Thai Kedmanee layout mapping
+   - Layout: Thai
+   - Full support for Thai characters, numerals, and punctuation
 
-Install IBus, Python IBus binding, and GObject Introspection bindings
+3. **Thaime Mode** (`thaime-python-thaime`)
+   - Experimental Latin-to-Thai conversion engine
+   - Currently implements keystroke logging for development
+   - Layout: US
+   - Foundation for future intelligent conversion features
 
-**Ubuntu:**
+### IBus Integration
 
-```bash
-sudo apt update
-sudo apt install -y ibus ibus-gtk3 python3-gi gir1.2-ibus-1.0 libibus-1.0-dev
-```
+- Full IBus compatibility
+- Proper component registration with three selectable engines
+- Support for engine switching via standard desktop input method settings
+- Comprehensive logging and debugging capabilities
 
-**Fedora:**
+## Installation
 
-```bash
-sudo dnf update
-sudo dnf install -y ibus ibus-devel ibus-gtk3 gobject-introspection gobject-introspection-devel python3-gobject-base python3-gobject-devel
-```
+### Prerequisites
 
-### Installation Steps
+- Ubuntu/Debian: `sudo apt install ibus ibus-gtk3 python3-gi gir1.2-ibus-1.0 libibus-1.0-dev`
+- Python 3.x with GObject Introspection bindings
 
-1. **Copy component configuration for IBus**:
+### Setup
+
+1. Navigate to the python-engine directory:
    ```bash
-   sudo cp python-engine/thaime-python.xml /usr/share/ibus/component/
+   cd python-engine
    ```
 
-2. **Make launcher executable**:
+2. Run the setup script:
    ```bash
-   chmod +x ibus-engine-thaime-python
+   ./setup.sh
    ```
 
-3. **Start or restart IBus daemon**:
+3. Restart IBus daemon:
    ```bash
-   ibus-daemon -drxv
+   ibus-daemon -drx
    ```
 
-4. **Verify registration**:
+4. Verify engine registration:
    ```bash
    ibus list-engine | grep thaime
    ```
-   Should output: `thaime-python - Thai (thaime-python)`
 
 ## Usage
 
-### Starting the Engine
+### Selecting Input Modes
 
-1. **Register with IBus** (if running standalone):
-   ```bash
-   python3 main.py
-   ```
+Use your desktop environment's input method settings to select from:
+- **Latin (thaime-python)** - Standard QWERTY input
+- **Thai Kedmanee (thaime-python)** - Thai text input with Kedmanee layout
+- **Thaime (thaime-python)** - Experimental conversion engine
 
-2. **Or run via IBus** (when activated by user):
-   ```bash
-   python3 ibus-engine-thaime-python --ibus
-   ```
+### Thai-Kedmanee Layout
 
-### Selecting the IME
+The Thai-Kedmanee mode provides complete Thai character input:
 
+```
+QWERTY: a s d f g h j k l
+Thai:   ฟ ห ก ด เ ้ ่ า ส
+```
+
+Example conversions:
+- `hello` → `้ำสสน`
+- `asdf` → `ฟหกด`
+- `123` → `ๅ/_`
+
+## Testing
+
+### Quick Test
 ```bash
-# Select the IME engine
-ibus engine thaime-python
-
-# Verify selection
-ibus engine
+python3 test_three_modes.py
 ```
 
-### Testing Keystroke Logging
-
-Run the included test script to demonstrate functionality:
-
+### Comprehensive Integration Test
 ```bash
-python3 ../test_ime_functionality.py
+python3 test_integration.py
 ```
 
-This script simulates various keystroke events and shows the logging output.
-
-## Keystroke Logging Output
-
-The engine logs detailed information for each keystroke:
-
-```
-Key pressed: keyval=97 (0x61) 'a', keycode=38, state=0 (0x0)
-Handling letter: a
-```
-
-Information includes:
-- **keyval**: Unicode value of the key
-- **keycode**: Hardware-specific key code
-- **state**: Modifier key states (Shift, Ctrl, Alt, etc.)
-- **character**: Human-readable character representation
-
-## Engine States and Events
-
-The engine handles various IBus events:
-
-- **Focus In/Out**: When the engine gains/loses focus
-- **Enable/Disable**: When the engine is activated/deactivated
-- **Reset**: When the engine needs to clear its state
-- **Key Events**: All keyboard input processing
-
-## Customization
-
-To extend the IME functionality:
-
-1. **Modify `engine.py`**: Add custom key processing logic in `do_process_key_event()`
-2. **Update logging**: Adjust logging levels and format in the logger configuration
-3. **Add properties**: Extend the property list for engine configuration options
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Engine not listed**: 
-   - Ensure XML file is in `/usr/share/ibus/component/`
-   - Restart IBus daemon
-
-2. **Permission errors**:
-   - Check file permissions on launcher script
-   - Ensure proper D-Bus session setup
-
-3. **Import errors**:
-   - Verify IBus Python bindings are installed
-   - Check Python path configuration
-
-### Debug Mode
-
-Enable verbose logging by running with debug environment:
-
+### Original Keystroke Logging Test
 ```bash
-export IBUS_DEBUG=1
-export G_MESSAGES_DEBUG=all
-python3 main.py
+python3 test_ime_functionality.py
 ```
 
 ## Development
 
-### Documentations
+### Architecture
 
-Find the IBus documentations from here:
-- [github/ibus/wiki](https://github.com/ibus/ibus/wiki)
-- [IBus Python Docs](https://lazka.github.io/pgi-docs/#IBus-1.0)
-- [IBus C Docs](https://ibus.github.io/docs/ibus-1.5/index.html)
+- `engine.py` - Core engine implementations (BaseEngine, LatinEngine, ThaiKedmaneeEngine, ThaiimeEngine)
+- `factory.py` - IBus engine factory for creating engine instances
+- `main.py` - IBus component registration and main application
+- `thai_keymap.py` - Thai Kedmanee keyboard layout mapping
+- `thaime-python.xml` - IBus component configuration
 
-Find relevant GNOME Python API (GLib) documentations from here:
-- [Pygobject](https://api.pygobject.gnome.org/)
+### Adding New Features
+
+1. Extend the appropriate engine class in `engine.py`
+2. Update the keymap in `thai_keymap.py` if needed
+3. Add tests to verify functionality
+4. Update documentation
+
+### Debugging
+
+All engines provide detailed logging. To see debug output:
+```bash
+# Run with debug logging
+PYTHONPATH=. python3 main.py --ibus
+```
+
+## Future Plans
+
+The Thaime mode is designed to evolve into an intelligent Latin-to-Thai conversion engine that can:
+- Analyze Latin text patterns
+- Apply phonetic conversion rules
+- Provide context-aware Thai text suggestions
+- Learn from user corrections and preferences
+
+The current keystroke logging implementation provides the foundation for developing these advanced features.
+
+## Technical Details
+
+For detailed technical information about the implementation, see [THREE_MODES_README.md](THREE_MODES_README.md).
+
+## License
+
+GPL-3.0-or-later
