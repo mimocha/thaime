@@ -24,7 +24,7 @@ class IMApp:
         # Create IBus component
         self.__component = IBus.Component(
             name="org.freedesktop.IBus.ThaimePython",
-            description="Thaime Python Engine",
+            description="Thaime Python Engine Collection",
             version="0.1.1",
             license="GPL-3.0-or-later",
             author="mimocha <chawit.leosrisook@outlook.com>",
@@ -32,19 +32,47 @@ class IMApp:
             textdomain="thaime"
         )
         
-        # Add engine to component
-        engine = IBus.EngineDesc(
-            name="thaime-python",
-            longname="Thai (thaime-python)",
-            description="Thai Input Method Engine (Python)",
+        # Add Latin engine
+        latin_engine = IBus.EngineDesc(
+            name="thaime-python-latin",
+            longname="Latin (thaime-python)",
+            description="Latin Input Method Engine - Standard QWERTY",
+            language="en",
+            license="GPL-3.0-or-later",
+            author="mimocha <chawit.leosrisook@outlook.com>",
+            icon="",
+            layout="us",
+            rank=1
+        )
+        self.__component.add_engine(latin_engine)
+        
+        # Add Thai-Kedmanee engine
+        kedmanee_engine = IBus.EngineDesc(
+            name="thaime-python-kedmanee",
+            longname="Thai Kedmanee (thaime-python)",
+            description="Thai Kedmanee Input Method Engine",
             language="th",
             license="GPL-3.0-or-later",
             author="mimocha <chawit.leosrisook@outlook.com>",
             icon="",
             layout="th",
-            rank=99
+            rank=2
         )
-        self.__component.add_engine(engine)
+        self.__component.add_engine(kedmanee_engine)
+        
+        # Add Thaime engine
+        thaime_engine = IBus.EngineDesc(
+            name="thaime-python-thaime",
+            longname="Thaime (thaime-python)",
+            description="Thaime Input Method Engine - Latin to Thai conversion (experimental)",
+            language="th",
+            license="GPL-3.0-or-later",
+            author="mimocha <chawit.leosrisook@outlook.com>",
+            icon="",
+            layout="us",
+            rank=3
+        )
+        self.__component.add_engine(thaime_engine)
         
         # Create main loop and bus
         self.__mainloop = GLib.MainLoop()

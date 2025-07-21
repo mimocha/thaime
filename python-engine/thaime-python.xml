@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component>
     <name>org.freedesktop.IBus.ThaimePython</name>
-    <description>Thaime Python Engine</description>
+    <description>Thaime Python Engine Collection</description>
     <exec>/home/mimocha/repo/thaime/python-engine/ibus-engine-thaime-python --ibus</exec>
     <version>0.1.1</version>
     <author>mimocha &lt;chawit.leosrisook@outlook.com&gt;</author>
@@ -10,14 +10,37 @@
 
     <engines>
         <engine>
-            <name>thaime-python</name>
+            <name>thaime-python-latin</name>
+            <language>en</language>
+            <license>GPL-3.0-or-later</license>
+            <author>mimocha &lt;chawit.leosrisook@outlook.com&gt;</author>
+            <icon></icon>
+            <layout>us</layout>
+            <longname>Latin (thaime-python)</longname>
+            <description>Latin Input Method Engine - Standard QWERTY</description>
+            <rank>1</rank>
+        </engine>
+        <engine>
+            <name>thaime-python-kedmanee</name>
             <language>th</language>
             <license>GPL-3.0-or-later</license>
             <author>mimocha &lt;chawit.leosrisook@outlook.com&gt;</author>
             <icon></icon>
             <layout>th</layout>
-            <longname>Thai (thaime-python)</longname>
-            <description>Thai Input Method Engine (Python)</description>
+            <longname>Thai Kedmanee (thaime-python)</longname>
+            <description>Thai Kedmanee Input Method Engine</description>
+            <rank>2</rank>
+        </engine>
+        <engine>
+            <name>thaime-python-thaime</name>
+            <language>th</language>
+            <license>GPL-3.0-or-later</license>
+            <author>mimocha &lt;chawit.leosrisook@outlook.com&gt;</author>
+            <icon></icon>
+            <layout>us</layout>
+            <longname>Thaime (thaime-python)</longname>
+            <description>Thaime Input Method Engine - Latin to Thai conversion (experimental)</description>
+            <rank>3</rank>
         </engine>
     </engines>
 </component>
