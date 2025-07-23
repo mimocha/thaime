@@ -19,7 +19,7 @@ impl IBusEngineFactory {
         
         if engine_name == "thaime-rust" {
             let engine_id = self.engine_id_counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-            let engine_path = format!("/org/freedesktop/IBus/Engine/ThaimaRust/{}", engine_id);
+            let engine_path = format!("/org/freedesktop/IBus/Engine/ThaimeRust/{}", engine_id);
             
             info!("=== Factory: Creating engine instance with path: {} ===", engine_path);
             

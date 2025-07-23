@@ -98,7 +98,7 @@ print_test "XML component file validation"
 xml_file="thaime-rust.xml"
 if [ -f "$xml_file" ]; then
     # Check if XML contains required elements
-    if grep -q "thaime-rust" "$xml_file" && grep -q "ThaimaRust" "$xml_file"; then
+    if grep -q "thaime-rust" "$xml_file" && grep -q "ThaimeRust" "$xml_file"; then
         print_success "XML component file contains expected engine name"
     else
         print_error "XML component file missing expected elements"

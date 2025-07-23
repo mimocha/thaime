@@ -21,7 +21,7 @@ impl ThaiEngine {
                  keyval, key_char, keycode, modifiers, modifier_names);
         
         // Return true to indicate we've handled the key
-        // Later you'll implement actual logic to determine this
+        // TODO: implement actual logic to determine this
         match keyval {
             // Handle printable ASCII characters for demonstration
             32..=126 => {

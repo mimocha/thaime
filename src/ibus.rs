@@ -98,7 +98,7 @@ pub async fn register_ibus_component(connection: &Connection, exec_by_ibus: bool
         info!("Factory registered at: {}", factory_path);
         
         // Request the bus name that matches our component
-        let bus_name = "org.freedesktop.IBus.ThaimaRust";
+        let bus_name = "org.freedesktop.IBus.ThaimeRust";
         match connection.request_name(bus_name).await {
             Ok(reply) => info!("Successfully requested bus name: {} with reply: {:?}", bus_name, reply),
             Err(e) => {
@@ -156,7 +156,7 @@ fn create_component_description() -> Value<'static> {
     // Create component description as a HashMap
     let mut component = HashMap::new();
     
-    component.insert("name".to_string(), Value::from("org.freedesktop.IBus.ThaimaRust"));
+    component.insert("name".to_string(), Value::from("org.freedesktop.IBus.ThaimeRust"));
     component.insert("description".to_string(), Value::from("Thaime Rust Engine"));
     component.insert("version".to_string(), Value::from("0.1.0"));
     component.insert("license".to_string(), Value::from("GPL-3.0-or-later"));
