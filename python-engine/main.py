@@ -18,12 +18,12 @@ class IMApp:
             level=logging.DEBUG,
             format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         )
-        self.logger = logging.getLogger('thaime-python')
-        self.logger.info("Starting Thaime Python IME")
+        self.logger = logging.getLogger('thaime')
+        self.logger.info("Starting Thaime")
         
         # Create IBus component
         self.__component = IBus.Component(
-            name="org.freedesktop.IBus.ThaimePython",
+            name="org.freedesktop.IBus.Thaime",
             description="Thaime Python Engine",
             version="0.1.1",
             license="GPL-3.0-or-later",
@@ -33,18 +33,17 @@ class IMApp:
         )
         
         # Add engine to component
-        engine = IBus.EngineDesc(
-            name="thaime-python",
-            longname="Thai (thaime-python)",
-            description="Thai Input Method Engine (Python)",
-            language="th",
-            license="GPL-3.0-or-later",
+        thaime_engine = IBus.EngineDesc(
+            name="thaime",
+            longname="Thaime",
+            description="Thai Input Method Engine",
             author="mimocha <chawit.leosrisook@outlook.com>",
             icon="",
-            layout="th",
-            rank=99
+            language="th",
+            layout="us",
+            rank=1
         )
-        self.__component.add_engine(engine)
+        self.__component.add_engine(thaime_engine)
         
         # Create main loop and bus
         self.__mainloop = GLib.MainLoop()
@@ -55,11 +54,11 @@ class IMApp:
         self.__factory = factory.EngineFactory(self.__bus)
         
         if exec_by_ibus:
-            self.__bus.request_name("org.freedesktop.IBus.ThaimePython", 0)
+            self.__bus.request_name("org.freedesktop.IBus.Thaime", 0)
         else:
             self.__bus.register_component(self.__component)
         
-        self.logger.info("Thaime Python IME initialized")
+        self.logger.info("Thaime initialized")
 
     def run(self):
         self.logger.info("Running main loop")

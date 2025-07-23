@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component>
+    <name>org.freedesktop.IBus.Thaime</name>
+    <description>Thaime Engine</description>
+    <exec>/home/mimocha/repo/thaime/python-engine/ibus-engine-thaime --ibus</exec>
+    <version>0.2.0</version>
+    <author>mimocha &lt;chawit.leosrisook@outlook.com&gt;</author>
+    <license>GPL-3.0-or-later</license>
+    <homepage>https://github.com/mimocha/thaime</homepage>
+    <textdomain>thaime</textdomain>
+
+    <engines>
+        <engine>
+            <name>thaime</name>
+            <longname>Thaime</longname>
+            <description>Thai Input Method Engine</description>
+            <icon></icon>
+            <language>th</language>
+            <layout>us</layout>
+            <rank>1</rank>
+        </engine>
+    </engines>
+</component>
