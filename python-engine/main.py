@@ -25,7 +25,7 @@ class IMApp:
         self.__component = IBus.Component(
             name="org.freedesktop.IBus.Thaime",
             description="Thaime Python Engine",
-            version="0.1.1",
+            version="0.3.0",
             license="GPL-3.0-or-later",
             author="mimocha <chawit.leosrisook@outlook.com>",
             command_line="",

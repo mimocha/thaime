@@ -1,11 +1,4 @@
-import sys
-import os
+#!/usr/bin/sh
 
-# Add the current directory to Python path so we can import our modules
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
-# Import and run the main application
-import main
-
-if __name__ == "__main__":
-    main.main()
+export IBUS_PREFIX=/usr
+exec  python3 /home/mimocha/repo/thaime/python-engine/main.py "$@"

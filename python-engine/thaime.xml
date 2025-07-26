@@ -3,7 +3,7 @@
     <name>org.freedesktop.IBus.Thaime</name>
     <description>Thaime Engine</description>
     <exec>/home/mimocha/repo/thaime/python-engine/ibus-engine-thaime --ibus</exec>
-    <version>0.2.0</version>
+    <version>0.3.0</version>
     <author>mimocha &lt;chawit.leosrisook@outlook.com&gt;</author>
     <license>GPL-3.0-or-later</license>
     <homepage>https://github.com/mimocha/thaime</homepage>

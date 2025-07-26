@@ -52,7 +52,7 @@ sudo dnf install -y ibus ibus-devel ibus-gtk3 gobject-introspection gobject-intr
    ```bash
    ibus list-engine | grep thaime
    ```
-   Should output: `thaime-python - Thai (thaime-python)`
+   Should output: `thaime - Thaime`
 
 ## Usage
 
