@@ -10,7 +10,7 @@
 //! for the MVP; incremental updates can be added later if profiling shows
 //! a need.
 
-use crate::ranking::{self, Candidate, DEFAULT_K};
+use crate::ranking::{self, Candidate, LatticeEdge, RankingParams};
 use crate::trie::Dictionary;
 
 /// Maximum input buffer length (bytes). Safety valve against huge lattices.
@@ -25,6 +25,7 @@ pub struct InputContext {
     buffer: String,
     dictionary: Dictionary,
     candidates: Vec<Candidate>,
+    lattice_edges: Vec<LatticeEdge>,
 }
 
 impl InputContext {
@@ -34,6 +35,7 @@ impl InputContext {
             buffer: String::new(),
             dictionary,
             candidates: Vec::new(),
+            lattice_edges: Vec::new(),
         }
     }
 
@@ -69,6 +71,11 @@ impl InputContext {
         &self.candidates
     }
 
+    /// Get the lattice edges from the most recent ranking.
+    pub fn lattice_edges(&self) -> &[LatticeEdge] {
+        &self.lattice_edges
+    }
+
     /// Commit the candidate at the given index.
     ///
     /// Returns the Thai text of the committed candidate, or `None` if the
@@ -78,6 +85,7 @@ impl InputContext {
         if thai.is_some() {
             self.buffer.clear();
             self.candidates.clear();
+            self.lattice_edges.clear();
         }
         thai
     }
@@ -86,6 +94,7 @@ impl InputContext {
     pub fn reset(&mut self) {
         self.buffer.clear();
         self.candidates.clear();
+        self.lattice_edges.clear();
     }
 
     /// Get the current Latin input buffer (for preedit display).
@@ -97,8 +106,11 @@ impl InputContext {
     fn refresh_candidates(&mut self) {
         if self.buffer.is_empty() {
             self.candidates.clear();
+            self.lattice_edges.clear();
         } else {
-            self.candidates = ranking::rank_candidates(&self.buffer, &self.dictionary, DEFAULT_K);
+            let result = ranking::rank_candidates(&self.buffer, &self.dictionary, &RankingParams::default());
+            self.candidates = result.candidates;
+            self.lattice_edges = result.lattice_edges;
         }
     }
 }
@@ -237,6 +249,8 @@ mod tests {
         let candidates = ctx.candidates();
         assert!(!candidates.is_empty());
         assert_eq!(candidates[0].thai, "ไม่ใน");
-        assert_eq!(candidates[0].words, vec!["ไม่", "ใน"]);
+        assert_eq!(candidates[0].word_count(), 2);
+        assert_eq!(candidates[0].words[0].thai, "ไม่");
+        assert_eq!(candidates[0].words[1].thai, "ใน");
     }
 }

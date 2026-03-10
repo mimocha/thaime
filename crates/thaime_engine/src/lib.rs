@@ -13,7 +13,7 @@ pub mod trie;
 pub mod validate;
 
 use context::InputContext;
-use ranking::Candidate;
+use ranking::{Candidate, LatticeEdge};
 use trie::Dictionary;
 
 /// The top-level engine handle.
@@ -71,6 +71,14 @@ impl ThaiMeEngine {
     pub fn candidates(&self) -> &[Candidate] {
         match &self.context {
             Some(ctx) => ctx.candidates(),
+            None => &[],
+        }
+    }
+
+    /// Get the lattice edges from the most recent ranking.
+    pub fn lattice_edges(&self) -> &[LatticeEdge] {
+        match &self.context {
+            Some(ctx) => ctx.lattice_edges(),
             None => &[],
         }
     }
@@ -182,8 +190,10 @@ mod tests {
         assert!(engine.push_key('i'));
 
         assert_eq!(engine.preedit(), "mai");
-        assert_eq!(engine.candidates().len(), 3);
-        assert_eq!(engine.candidates()[0].thai, "ไม่");
+        let candidates = engine.candidates();
+        assert_eq!(candidates.len(), 3);
+        assert_eq!(candidates[0].thai, "ไม่");
+        assert_eq!(candidates[0].words[0].thai, "ไม่");
     }
 
     #[test]

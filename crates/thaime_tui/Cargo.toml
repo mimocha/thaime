@@ -1,0 +1,12 @@
+[package]
+name = "thaime_tui"
+description = "THAIME interactive TUI for exploring and tuning the engine"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+thaime_engine = { path = "../thaime_engine" }
+ratatui = "0.29"
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"

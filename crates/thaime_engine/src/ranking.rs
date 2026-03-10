@@ -18,62 +18,128 @@ use std::collections::HashSet;
 
 use crate::trie::Dictionary;
 
-/// Segmentation penalty added per word. Higher values favor fewer, longer words.
-/// Tuned on mock data — revisit once real-data testing is possible via the CLI.
-pub const LAMBDA: f64 = 1.0;
+/// Default segmentation penalty per word. Higher = fewer, longer words preferred.
+pub const DEFAULT_LAMBDA: f64 = 1.0;
 
-/// Floor for word frequency to avoid -ln(0).
-const MIN_FREQ: f64 = 1e-4;
+/// Default floor for word frequency to avoid -ln(0).
+pub const DEFAULT_MIN_FREQ: f64 = 1e-4;
 
 /// Default number of candidates to track per lattice position.
 pub const DEFAULT_K: usize = 10;
 
+/// Parameters controlling the ranking algorithm.
+///
+/// All fields have sensible defaults via `Default`. The TUI uses this to
+/// allow runtime tuning; `InputContext` uses the defaults.
+#[derive(Debug, Clone)]
+pub struct RankingParams {
+    /// Segmentation penalty added per word.
+    pub lambda: f64,
+    /// Floor for word frequency to avoid -ln(0).
+    pub min_freq: f64,
+    /// Number of best candidates to track per lattice position.
+    pub k: usize,
+}
+
+impl Default for RankingParams {
+    fn default() -> Self {
+        Self {
+            lambda: DEFAULT_LAMBDA,
+            min_freq: DEFAULT_MIN_FREQ,
+            k: DEFAULT_K,
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Public types
 // ---------------------------------------------------------------------------
+
+/// A single word within a candidate path.
+#[derive(Debug, Clone)]
+pub struct CandidateWord {
+    /// Thai text for this word.
+    pub thai: String,
+    /// Raw word frequency from the dictionary.
+    pub frequency: f64,
+    /// Cost contribution: -ln(max(freq, MIN_FREQ)) + LAMBDA.
+    pub cost: f64,
+}
 
 /// A ranked candidate: one possible interpretation of the full Latin input.
 #[derive(Debug, Clone)]
 pub struct Candidate {
     /// Concatenated Thai text (all words joined).
     pub thai: String,
-    /// Individual Thai words that make up this candidate.
-    pub words: Vec<String>,
+    /// Individual words that make up this candidate, with per-word scoring.
+    pub words: Vec<CandidateWord>,
     /// Total path cost (lower = better).
     pub score: f64,
+    /// Sum of -ln(freq) components (without lambda penalties).
+    pub freq_cost: f64,
+    /// Total segmentation penalty: word_count * LAMBDA.
+    pub seg_penalty: f64,
+}
+
+impl Candidate {
+    /// Number of words in this candidate path.
+    pub fn word_count(&self) -> usize {
+        self.words.len()
+    }
 }
 
 // ---------------------------------------------------------------------------
 // Internal types
 // ---------------------------------------------------------------------------
 
-/// An edge in the word lattice.
-struct LatticeEdge {
-    start: usize,
-    thai: String,
-    cost: f64,
+/// An edge in the word lattice: a single trie match spanning [start, end) in the input.
+#[derive(Debug, Clone)]
+pub struct LatticeEdge {
+    /// Start byte position in the input string.
+    pub start: usize,
+    /// End byte position in the input string.
+    pub end: usize,
+    /// Thai text for this word.
+    pub thai: String,
+    /// Word ID from the dictionary.
+    pub word_id: u32,
+    /// Raw word frequency from the dictionary.
+    pub frequency: f64,
+    /// Edge cost: -ln(max(freq, MIN_FREQ)) + LAMBDA.
+    pub cost: f64,
 }
 
 /// A partial path through the lattice (used during Viterbi forward pass).
 #[derive(Clone)]
 struct PartialPath {
     cost: f64,
-    words: Vec<String>,
+    words: Vec<CandidateWord>,
 }
 
 // ---------------------------------------------------------------------------
 // Core algorithm
 // ---------------------------------------------------------------------------
 
+/// Result of ranking: candidates plus the lattice used to produce them.
+pub struct RankingResult {
+    /// Ranked candidates (deduplicated, best first).
+    pub candidates: Vec<Candidate>,
+    /// All lattice edges discovered during trie lookup.
+    pub lattice_edges: Vec<LatticeEdge>,
+}
+
 /// Build a word lattice from the input and score all complete paths.
 ///
 /// Returns up to `k` candidates, deduplicated by Thai text and sorted by
 /// ascending cost (best first). Returns an empty list if no complete tiling
-/// of the input exists.
-pub fn rank_candidates(input: &str, dictionary: &Dictionary, k: usize) -> Vec<Candidate> {
+/// of the input exists. Also returns the full lattice for inspection.
+pub fn rank_candidates(input: &str, dictionary: &Dictionary, params: &RankingParams) -> RankingResult {
     let n = input.len();
     if n == 0 {
-        return Vec::new();
+        return RankingResult {
+            candidates: Vec::new(),
+            lattice_edges: Vec::new(),
+        };
     }
 
     // --- Build lattice edges, grouped by end position ---
@@ -82,18 +148,24 @@ pub fn rank_candidates(input: &str, dictionary: &Dictionary, k: usize) -> Vec<Ca
     // An edge from `start` to `end` means input[start..end] matched a
     // romanization key in the trie.
 
-    let mut edges_by_end: Vec<Vec<LatticeEdge>> = (0..=n).map(|_| Vec::new()).collect();
+    let mut all_edges: Vec<LatticeEdge> = Vec::new();
+    let mut edges_by_end: Vec<Vec<usize>> = (0..=n).map(|_| Vec::new()).collect();
 
     for start in 0..n {
         for prefix_match in dictionary.prefix_search(&input[start..]) {
             let end = start + prefix_match.prefix_len;
             for entry in &prefix_match.entries {
-                let cost = -(entry.frequency.max(MIN_FREQ).ln()) + LAMBDA;
-                edges_by_end[end].push(LatticeEdge {
+                let cost = -(entry.frequency.max(params.min_freq).ln()) + params.lambda;
+                let idx = all_edges.len();
+                all_edges.push(LatticeEdge {
                     start,
+                    end,
                     thai: entry.thai.clone(),
+                    word_id: entry.word_id,
+                    frequency: entry.frequency,
                     cost,
                 });
+                edges_by_end[end].push(idx);
             }
         }
     }
@@ -112,10 +184,15 @@ pub fn rank_candidates(input: &str, dictionary: &Dictionary, k: usize) -> Vec<Ca
     for end in 1..=n {
         let mut candidates: Vec<PartialPath> = Vec::new();
 
-        for edge in &edges_by_end[end] {
+        for &edge_idx in &edges_by_end[end] {
+            let edge = &all_edges[edge_idx];
             for path in &best[edge.start] {
                 let mut new_words = path.words.clone();
-                new_words.push(edge.thai.clone());
+                new_words.push(CandidateWord {
+                    thai: edge.thai.clone(),
+                    frequency: edge.frequency,
+                    cost: edge.cost,
+                });
                 candidates.push(PartialPath {
                     cost: path.cost + edge.cost,
                     words: new_words,
@@ -125,7 +202,7 @@ pub fn rank_candidates(input: &str, dictionary: &Dictionary, k: usize) -> Vec<Ca
 
         // Sort by cost (ascending) and keep only the k-best
         candidates.sort_by(|a, b| a.cost.partial_cmp(&b.cost).unwrap_or(std::cmp::Ordering::Equal));
-        candidates.truncate(k);
+        candidates.truncate(params.k);
         best[end] = candidates;
     }
 
@@ -134,11 +211,15 @@ pub fn rank_candidates(input: &str, dictionary: &Dictionary, k: usize) -> Vec<Ca
     let mut results: Vec<Candidate> = best[n]
         .iter()
         .map(|path| {
-            let thai = path.words.concat();
+            let thai: String = path.words.iter().map(|w| w.thai.as_str()).collect();
+            let freq_cost: f64 = path.words.iter().map(|w| -(w.frequency.max(params.min_freq).ln())).sum();
+            let seg_penalty = path.words.len() as f64 * params.lambda;
             Candidate {
                 thai,
                 words: path.words.clone(),
                 score: path.cost,
+                freq_cost,
+                seg_penalty,
             }
         })
         .collect();
@@ -148,7 +229,10 @@ pub fn rank_candidates(input: &str, dictionary: &Dictionary, k: usize) -> Vec<Ca
     let mut seen = HashSet::new();
     results.retain(|c| seen.insert(c.thai.clone()));
 
-    results
+    RankingResult {
+        candidates: results,
+        lattice_edges: all_edges,
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -173,24 +257,30 @@ mod tests {
         build_test_dict()
     }
 
+    /// Helper to extract just the candidates from a ranking result.
+    fn rank(input: &str, dict: &Dictionary, k: usize) -> Vec<Candidate> {
+        let params = RankingParams { k, ..Default::default() };
+        rank_candidates(input, dict, &params).candidates
+    }
+
     #[test]
     fn test_empty_input() {
         let dict = build_test_dict();
-        let results = rank_candidates("", &dict, DEFAULT_K);
+        let results = rank("", &dict, DEFAULT_K);
         assert!(results.is_empty());
     }
 
     #[test]
     fn test_no_match() {
         let dict = build_test_dict();
-        let results = rank_candidates("xyz", &dict, DEFAULT_K);
+        let results = rank("xyz", &dict, DEFAULT_K);
         assert!(results.is_empty());
     }
 
     #[test]
     fn test_single_word_candidates() {
         let dict = build_test_dict();
-        let results = rank_candidates("mai", &dict, DEFAULT_K);
+        let results = rank("mai", &dict, DEFAULT_K);
 
         // "mai" maps to 3 words: ไม่ (0.013), ไหม (0.005), ใหม่ (0.004)
         // All are single-word complete paths covering the full input.
@@ -198,7 +288,8 @@ mod tests {
 
         // Best candidate should be ไม่ (highest frequency = lowest cost)
         assert_eq!(results[0].thai, "ไม่");
-        assert_eq!(results[0].words, vec!["ไม่"]);
+        assert_eq!(results[0].words.len(), 1);
+        assert_eq!(results[0].words[0].thai, "ไม่");
 
         // Second should be ไหม
         assert_eq!(results[1].thai, "ไหม");
@@ -214,7 +305,7 @@ mod tests {
     #[test]
     fn test_multi_word_path() {
         let dict = build_test_dict();
-        let results = rank_candidates("mainai", &dict, DEFAULT_K);
+        let results = rank("mainai", &dict, DEFAULT_K);
 
         // Possible complete paths (tiling all 6 bytes):
         //   "mai"(3) + "nai"(3) → ไม่ใน, ไหมใน, ใหม่ใน
@@ -223,24 +314,27 @@ mod tests {
 
         // Best: ไม่ใน (ไม่ has highest freq among "mai" words)
         assert_eq!(results[0].thai, "ไม่ใน");
-        assert_eq!(results[0].words, vec!["ไม่", "ใน"]);
+        assert_eq!(results[0].word_count(), 2);
+        assert_eq!(results[0].words[0].thai, "ไม่");
+        assert_eq!(results[0].words[1].thai, "ใน");
     }
 
     #[test]
     fn test_single_long_word() {
         let dict = build_test_dict();
-        let results = rank_candidates("sawatdee", &dict, DEFAULT_K);
+        let results = rank("sawatdee", &dict, DEFAULT_K);
 
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].thai, "สวัสดี");
-        assert_eq!(results[0].words, vec!["สวัสดี"]);
+        assert_eq!(results[0].word_count(), 1);
+        assert_eq!(results[0].words[0].thai, "สวัสดี");
     }
 
     #[test]
     fn test_partial_coverage_returns_empty() {
         let dict = build_test_dict();
         // "maix" — "mai" matches positions 0..3, but "x" at position 3 has no match
-        let results = rank_candidates("maix", &dict, DEFAULT_K);
+        let results = rank("maix", &dict, DEFAULT_K);
         assert!(results.is_empty());
     }
 
@@ -250,7 +344,7 @@ mod tests {
         // "maai" maps only to ไม่ (word 0), so there's one path.
         // "mai" also maps to ไม่. If both variants lead to the same Thai output
         // in a multi-word context, dedup should keep only the best.
-        let results = rank_candidates("maai", &dict, DEFAULT_K);
+        let results = rank("maai", &dict, DEFAULT_K);
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].thai, "ไม่");
     }
@@ -259,7 +353,7 @@ mod tests {
     fn test_k_limits_results() {
         let dict = build_test_dict();
         // With k=1, only the best candidate should be returned
-        let results = rank_candidates("mai", &dict, 1);
+        let results = rank("mai", &dict, 1);
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].thai, "ไม่");
     }
@@ -270,10 +364,10 @@ mod tests {
 
         // Single word "nai" → ใน, freq=0.012
         // Expected cost: -ln(0.012) + 0.5
-        let results = rank_candidates("nai", &dict, DEFAULT_K);
+        let results = rank("nai", &dict, DEFAULT_K);
         assert_eq!(results.len(), 1);
 
-        let expected_cost = -(0.012_f64.ln()) + LAMBDA;
+        let expected_cost = -(0.012_f64.ln()) + DEFAULT_LAMBDA;
         assert!((results[0].score - expected_cost).abs() < 1e-10);
     }
 
@@ -282,14 +376,62 @@ mod tests {
         let dict = build_test_dict();
 
         // "mainai" → ไม่ใน = cost(ไม่) + cost(ใน)
-        let single_mai = rank_candidates("mai", &dict, DEFAULT_K);
-        let single_nai = rank_candidates("nai", &dict, DEFAULT_K);
-        let combined = rank_candidates("mainai", &dict, DEFAULT_K);
+        let single_mai = rank("mai", &dict, DEFAULT_K);
+        let single_nai = rank("nai", &dict, DEFAULT_K);
+        let combined = rank("mainai", &dict, DEFAULT_K);
 
         let mai_cost = single_mai[0].score; // ไม่
         let nai_cost = single_nai[0].score; // ใน
         let combined_cost = combined[0].score; // ไม่ใน
 
         assert!((combined_cost - (mai_cost + nai_cost)).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_score_decomposition() {
+        let dict = build_test_dict();
+        let results = rank("nai", &dict, DEFAULT_K);
+        assert_eq!(results.len(), 1);
+
+        let c = &results[0];
+        // freq_cost = -ln(0.012), seg_penalty = 1 * LAMBDA
+        let expected_freq = -(0.012_f64.ln());
+        assert!((c.freq_cost - expected_freq).abs() < 1e-10);
+        assert!((c.seg_penalty - DEFAULT_LAMBDA).abs() < 1e-10);
+        assert!((c.score - (c.freq_cost + c.seg_penalty)).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_lattice_edges_returned() {
+        let dict = build_test_dict();
+        let result = rank_candidates("mai", &dict, &RankingParams::default());
+
+        // "mai" should produce edges for "ma" (pos 0..2) and "mai" (pos 0..3)
+        assert!(!result.lattice_edges.is_empty());
+
+        // Verify edge structure
+        let ma_edges: Vec<_> = result.lattice_edges.iter().filter(|e| e.start == 0 && e.end == 2).collect();
+        assert_eq!(ma_edges.len(), 1); // มา
+        assert_eq!(ma_edges[0].thai, "มา");
+
+        let mai_edges: Vec<_> = result.lattice_edges.iter().filter(|e| e.start == 0 && e.end == 3).collect();
+        assert_eq!(mai_edges.len(), 3); // ไม่, ไหม, ใหม่
+    }
+
+    #[test]
+    fn test_candidate_word_details() {
+        let dict = build_test_dict();
+        let results = rank("mainai", &dict, DEFAULT_K);
+
+        let best = &results[0]; // ไม่ใน
+        assert_eq!(best.word_count(), 2);
+
+        // First word: ไม่, freq=0.013
+        assert_eq!(best.words[0].thai, "ไม่");
+        assert!((best.words[0].frequency - 0.013).abs() < 1e-10);
+
+        // Second word: ใน, freq=0.012
+        assert_eq!(best.words[1].thai, "ใน");
+        assert!((best.words[1].frequency - 0.012).abs() < 1e-10);
     }
 }
