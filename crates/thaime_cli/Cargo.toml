@@ -1,0 +1,9 @@
+[package]
+name = "thaime_cli"
+description = "THAIME Command-line interface for testing"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+thaime_engine = { path = "../thaime_engine" }

@@ -1,0 +1,29 @@
+# HawkEye license header configuration
+# Run `hawkeye check` to verify all files have correct headers.
+# Run `hawkeye format` to auto-add missing headers.
+
+headerPath = "LICENSE-HEADER"
+
+keywords = ["MPL-2.0"]
+
+includes = [
+    "crates/**/*.rs",
+    "scripts/**/*.sh",
+    "frontends/**/*.py",
+    "frontends/**/*.sh",
+    "frontends/**/*.c",
+    "frontends/**/*.cc",
+    "frontends/**/*.cpp",
+    "frontends/**/*.h",
+    # Extension-less Python executables
+    "frontends/ibus/ibus-engine-thaime",
+]
+
+excludes = [
+    "target/**",
+    "data/**",
+]
+
+# Extension-less executables: map to hash/script comment style.
+[mapping.SCRIPT_STYLE]
+filenames = ["ibus-engine-thaime"]

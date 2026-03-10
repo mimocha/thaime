@@ -1,0 +1,27 @@
+# Rust / Cargo
+/target/
+**/*.rs.bk
+
+# Generated
+thaime.h
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Input artifacts (generated from research repo, for building engine)
+data/input/*
+# Dictionary build artifacts (large binary files)
+data/dict/*.bin
+
+# Python (for any helper scripts)
+__pycache__/
+*.pyc
+.venv/

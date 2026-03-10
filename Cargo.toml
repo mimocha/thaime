@@ -1,0 +1,12 @@
+[workspace]
+resolver = "2"
+members = ["crates/*"]
+
+[workspace.package]
+name = "thaime"
+description = "THAIME - Thai Input Method Editor"
+authors = ["Chawit Leosrisook <chawit.leosrisook@outlook.com>"]
+version = "0.1.1"
+edition = "2021"
+license = "MPL-2.0"
+repository = "https://github.com/mimocha/thaime"

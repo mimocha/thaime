@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: MPL-2.0
+
+[package]
+name = "thaime_engine"
+description = "THAIME Core engine library"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[features]
+default = ["embed-dict"]
+embed-dict = []
+
+[lib]
+name = "thaime_engine"
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[build-dependencies]
+cbindgen = "0.29"
+
+[dependencies]
+yada = "0.5"
+serde = { version = "1", features = ["derive"] }
+bincode = "1"
