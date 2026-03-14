@@ -292,6 +292,7 @@ mod tests {
             assert!(thaime_process_key(engine, b'm' as u32, 0, 0));
             assert!(thaime_process_key(engine, b'a' as u32, 0, 0));
             assert!(thaime_process_key(engine, b'i' as u32, 0, 0));
+            thaime_clear_context(engine);
             thaime_reset(engine);
             thaime_engine_free(engine);
         }

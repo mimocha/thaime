@@ -8,9 +8,14 @@
 //! 2. Scores paths through the lattice using Viterbi DP with k-best tracking
 //! 3. Returns deduplicated, ranked Thai candidates
 //!
-//! Scoring formula (MVP, unigram):
-//!   edge_cost = -ln(max(freq, MIN_FREQ)) + LAMBDA
+//! Scoring formula:
+//!   unigram_cost = -ln(max(freq, MIN_FREQ)) + LAMBDA
+//!   bigram_bonus = bigram_weight * -ln(stupid_backoff_score)
+//!   edge_cost = unigram_cost + bigram_bonus
 //!   path_cost = sum of edge costs
+//!
+//! When n-gram data is not provided, bigram_bonus is 0 and scoring
+//! reduces to the original unigram-only formula.
 //!
 //! Lower cost = better candidate.
 
