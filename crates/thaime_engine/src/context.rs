@@ -10,11 +10,15 @@
 //! for the MVP; incremental updates can be added later if profiling shows
 //! a need.
 
+use crate::ngram::NgramData;
 use crate::ranking::{self, Candidate, LatticeEdge, RankingParams};
 use crate::trie::Dictionary;
 
 /// Maximum input buffer length (bytes). Safety valve against huge lattices.
 const MAX_BUFFER_LEN: usize = 50;
+
+/// Maximum context depth (number of previously committed words to track).
+const MAX_CONTEXT_DEPTH: usize = 1;
 
 /// Stateful input session context.
 ///
@@ -24,8 +28,10 @@ const MAX_BUFFER_LEN: usize = 50;
 pub struct InputContext {
     buffer: String,
     dictionary: Dictionary,
+    ngram: Option<NgramData>,
     candidates: Vec<Candidate>,
     lattice_edges: Vec<LatticeEdge>,
+    committed_context: Vec<String>,
 }
 
 impl InputContext {
@@ -34,8 +40,22 @@ impl InputContext {
         Self {
             buffer: String::new(),
             dictionary,
+            ngram: None,
             candidates: Vec::new(),
             lattice_edges: Vec::new(),
+            committed_context: Vec::new(),
+        }
+    }
+
+    /// Create a new input context with the given dictionary and n-gram data.
+    pub fn with_ngram(dictionary: Dictionary, ngram: NgramData) -> Self {
+        Self {
+            buffer: String::new(),
+            dictionary,
+            ngram: Some(ngram),
+            candidates: Vec::new(),
+            lattice_edges: Vec::new(),
+            committed_context: Vec::new(),
         }
     }
 
@@ -80,14 +100,24 @@ impl InputContext {
     ///
     /// Returns the Thai text of the committed candidate, or `None` if the
     /// index is out of bounds. Clears the input buffer and candidate list.
+    /// Pushes the committed word(s) onto the context history.
     pub fn commit(&mut self, index: usize) -> Option<String> {
-        let thai = self.candidates.get(index).map(|c| c.thai.clone());
-        if thai.is_some() {
+        let candidate = self.candidates.get(index).cloned();
+        if let Some(ref c) = candidate {
+            // Push each word individually for word-level bigram context
+            for word in &c.words {
+                self.committed_context.push(word.thai.clone());
+            }
+            // Trim context to max depth
+            let len = self.committed_context.len();
+            if len > MAX_CONTEXT_DEPTH {
+                self.committed_context.drain(..len - MAX_CONTEXT_DEPTH);
+            }
             self.buffer.clear();
             self.candidates.clear();
             self.lattice_edges.clear();
         }
-        thai
+        candidate.map(|c| c.thai)
     }
 
     /// Clear the input buffer and candidates without committing.
@@ -95,6 +125,23 @@ impl InputContext {
         self.buffer.clear();
         self.candidates.clear();
         self.lattice_edges.clear();
+        self.committed_context.clear();
+    }
+
+    /// Clear the committed context history (e.g., on focus change).
+    ///
+    /// Does not affect the current input buffer or candidates.
+    pub fn clear_context(&mut self) {
+        self.committed_context.clear();
+        // Re-rank with cleared context if there's active input
+        if !self.buffer.is_empty() {
+            self.refresh_candidates();
+        }
+    }
+
+    /// Get the committed context history.
+    pub fn committed_context(&self) -> &[String] {
+        &self.committed_context
     }
 
     /// Get the current Latin input buffer (for preedit display).
@@ -108,7 +155,13 @@ impl InputContext {
             self.candidates.clear();
             self.lattice_edges.clear();
         } else {
-            let result = ranking::rank_candidates(&self.buffer, &self.dictionary, &RankingParams::default());
+            let result = ranking::rank_candidates(
+                &self.buffer,
+                &self.dictionary,
+                self.ngram.as_ref(),
+                &self.committed_context,
+                &RankingParams::default(),
+            );
             self.candidates = result.candidates;
             self.lattice_edges = result.lattice_edges;
         }

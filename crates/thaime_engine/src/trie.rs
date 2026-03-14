@@ -211,8 +211,7 @@ pub(crate) mod tests {
         }
         group_offsets.push(group_word_ids.len() as u32);
 
-        let trie_bytes =
-            DoubleArrayBuilder::build(&keyset).expect("Failed to build test trie");
+        let trie_bytes = DoubleArrayBuilder::build(&keyset).expect("Failed to build test trie");
 
         let data = DictData {
             words,

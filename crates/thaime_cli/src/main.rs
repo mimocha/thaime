@@ -24,7 +24,9 @@ fn main() {
     let mut ctx = InputContext::new(dict);
 
     println!("THAIME CLI v{}", env!("CARGO_PKG_VERSION"));
-    println!("Type Latin characters to see Thai candidates. Commands: :q quit, :r reset, :b backspace\n");
+    println!(
+        "Type Latin characters to see Thai candidates. Commands: :q quit, :r reset, :b backspace\n"
+    );
 
     let stdin = io::stdin();
     let mut stdout = io::stdout();

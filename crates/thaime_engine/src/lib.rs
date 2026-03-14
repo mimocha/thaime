@@ -8,11 +8,13 @@
 
 pub mod context;
 pub mod keymap;
+pub mod ngram;
 pub mod ranking;
 pub mod trie;
 pub mod validate;
 
 use context::InputContext;
+use ngram::NgramData;
 use ranking::{Candidate, LatticeEdge};
 use trie::Dictionary;
 
@@ -44,6 +46,18 @@ impl ThaiMeEngine {
         let dict = Dictionary::from_bytes(trie_bytes, metadata_bytes);
         Self {
             context: Some(InputContext::new(dict)),
+        }
+    }
+
+    /// Create a new engine from pre-built dictionary bytes and n-gram data.
+    pub fn from_dict_bytes_with_ngram(
+        trie_bytes: Vec<u8>,
+        metadata_bytes: &[u8],
+        ngram: NgramData,
+    ) -> Self {
+        let dict = Dictionary::from_bytes(trie_bytes, metadata_bytes);
+        Self {
+            context: Some(InputContext::with_ngram(dict, ngram)),
         }
     }
 
@@ -98,6 +112,23 @@ impl ThaiMeEngine {
     pub fn reset(&mut self) {
         if let Some(ctx) = &mut self.context {
             ctx.reset();
+        }
+    }
+
+    /// Clear the committed context history (e.g., on focus change).
+    ///
+    /// Does not affect the current input buffer.
+    pub fn clear_context(&mut self) {
+        if let Some(ctx) = &mut self.context {
+            ctx.clear_context();
+        }
+    }
+
+    /// Get the committed context history.
+    pub fn committed_context(&self) -> &[String] {
+        match &self.context {
+            Some(ctx) => ctx.committed_context(),
+            None => &[],
         }
     }
 
@@ -167,6 +198,21 @@ pub unsafe extern "C" fn thaime_reset(engine: *mut ThaiMeEngine) {
     if !engine.is_null() {
         let engine = &mut *engine;
         engine.reset();
+    }
+}
+
+/// Clear the committed context history.
+///
+/// Call this when the text field loses focus, the cursor jumps, or the
+/// application switches. Does not affect the current input buffer.
+///
+/// # Safety
+/// `engine` must be a valid pointer from `thaime_engine_new()`.
+#[no_mangle]
+pub unsafe extern "C" fn thaime_clear_context(engine: *mut ThaiMeEngine) {
+    if !engine.is_null() {
+        let engine = &mut *engine;
+        engine.clear_context();
     }
 }
 

@@ -26,16 +26,19 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Cell, Clear, Paragraph, Row, Scrollbar, ScrollbarOrientation,
-              ScrollbarState, Table, TableState, Wrap},
+    widgets::{
+        Block, Borders, Cell, Clear, Paragraph, Row, Scrollbar, ScrollbarOrientation,
+        ScrollbarState, Table, TableState, Wrap,
+    },
     DefaultTerminal, Frame,
 };
 
 use serde::{Deserialize, Serialize};
 
+use thaime_engine::ngram::NgramData;
 use thaime_engine::ranking::{
-    rank_candidates, Candidate, LatticeEdge, RankingParams, DEFAULT_K, DEFAULT_LAMBDA,
-    DEFAULT_MIN_FREQ,
+    rank_candidates, Candidate, LatticeEdge, RankingParams, DEFAULT_ALPHA, DEFAULT_BIGRAM_WEIGHT,
+    DEFAULT_K, DEFAULT_LAMBDA, DEFAULT_MIN_FREQ,
 };
 use thaime_engine::trie::Dictionary;
 
@@ -121,9 +124,11 @@ struct App {
     // Main mode: input + ranking
     input: String,
     dictionary: Dictionary,
+    ngram: Option<NgramData>,
     candidates: Vec<Candidate>,
     lattice_edges: Vec<LatticeEdge>,
     scoring_duration: Duration,
+    committed_context: Vec<String>,
 
     // Tunable parameters
     params: RankingParams,
@@ -157,15 +162,17 @@ struct App {
 }
 
 impl App {
-    fn new(dictionary: Dictionary) -> Self {
+    fn new(dictionary: Dictionary, ngram: Option<NgramData>) -> Self {
         Self {
             mode: Mode::Main,
             should_quit: false,
             input: String::new(),
             dictionary,
+            ngram,
             candidates: Vec::new(),
             lattice_edges: Vec::new(),
             scoring_duration: Duration::ZERO,
+            committed_context: Vec::new(),
             params: RankingParams::default(),
             epsilon_idx: 0,
             inspector_input: String::new(),
@@ -299,6 +306,49 @@ impl App {
             (KeyCode::Char('e'), m) if m.contains(KeyModifiers::CONTROL) => {
                 self.epsilon_idx = (self.epsilon_idx + 1) % EPSILON_PRESETS.len();
                 self.params.min_freq = EPSILON_PRESETS[self.epsilon_idx];
+                self.refresh();
+            }
+
+            // Parameter tuning: bigram_weight (Ctrl+B cycles through presets)
+            (KeyCode::Char('b'), m) if m.contains(KeyModifiers::CONTROL) => {
+                const BW_PRESETS: &[f64] = &[0.0, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0];
+                let cur = self.params.bigram_weight;
+                let next_idx = BW_PRESETS.iter().position(|&v| v > cur).unwrap_or(0);
+                self.params.bigram_weight = BW_PRESETS[next_idx];
+                self.refresh();
+            }
+
+            // Parameter tuning: alpha (Ctrl+A cycles through presets)
+            (KeyCode::Char('a'), m) if m.contains(KeyModifiers::CONTROL) => {
+                const ALPHA_PRESETS: &[f64] = &[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.8];
+                let cur = self.params.alpha;
+                let next_idx = ALPHA_PRESETS.iter().position(|&v| v > cur).unwrap_or(0);
+                self.params.alpha = ALPHA_PRESETS[next_idx];
+                self.refresh();
+            }
+
+            // Commit top candidate (Enter) to build context
+            (KeyCode::Enter, KeyModifiers::NONE) => {
+                if !self.candidates.is_empty() {
+                    let c = &self.candidates[0];
+                    for word in &c.words {
+                        self.committed_context.push(word.thai.clone());
+                    }
+                    // Keep only last word for bigram context
+                    let len = self.committed_context.len();
+                    if len > 1 {
+                        self.committed_context.drain(..len - 1);
+                    }
+                    self.status_message = Some(format!("Committed: {}", c.thai));
+                    self.input.clear();
+                    self.refresh();
+                }
+            }
+
+            // Clear context (Ctrl+X)
+            (KeyCode::Char('x'), m) if m.contains(KeyModifiers::CONTROL) => {
+                self.committed_context.clear();
+                self.status_message = Some("Context cleared".to_string());
                 self.refresh();
             }
 
@@ -487,7 +537,13 @@ impl App {
             self.scoring_duration = Duration::ZERO;
         } else {
             let start = Instant::now();
-            let result = rank_candidates(&self.input, &self.dictionary, &self.params);
+            let result = rank_candidates(
+                &self.input,
+                &self.dictionary,
+                self.ngram.as_ref(),
+                &self.committed_context,
+                &self.params,
+            );
             self.scoring_duration = start.elapsed();
             self.candidates = result.candidates;
             self.lattice_edges = result.lattice_edges;
@@ -549,7 +605,13 @@ impl App {
         self.test_results = pairs
             .into_iter()
             .map(|pair| {
-                let result = rank_candidates(&pair.input, &self.dictionary, &self.params);
+                let result = rank_candidates(
+                    &pair.input,
+                    &self.dictionary,
+                    self.ngram.as_ref(),
+                    &[], // regression tests run without context
+                    &self.params,
+                );
                 let candidates = &result.candidates;
 
                 if candidates.is_empty() {
@@ -567,9 +629,7 @@ impl App {
                 let passed = actual_thai == pair.expected_thai;
 
                 // Find where the expected word actually ranked
-                let expected_pos = candidates
-                    .iter()
-                    .position(|c| c.thai == pair.expected_thai);
+                let expected_pos = candidates.iter().position(|c| c.thai == pair.expected_thai);
                 let expected_score = expected_pos.map(|i| candidates[i].score);
 
                 TestResult {
@@ -665,7 +725,7 @@ impl App {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(3),  // Input
+                Constraint::Length(3), // Input
                 Constraint::Min(5),    // Candidates
                 Constraint::Length(3), // Status + hints
             ])
@@ -679,20 +739,23 @@ impl App {
         frame.render_widget(input_widget, chunks[0]);
 
         #[allow(clippy::cast_possible_truncation)]
-        frame.set_cursor_position((
-            chunks[0].x + 3 + self.input.len() as u16,
-            chunks[0].y + 1,
-        ));
+        frame.set_cursor_position((chunks[0].x + 3 + self.input.len() as u16, chunks[0].y + 1));
 
         // --- Candidate table ---
         let param_changed = self.params.lambda != DEFAULT_LAMBDA
             || self.params.min_freq != DEFAULT_MIN_FREQ
-            || self.params.k != DEFAULT_K;
+            || self.params.k != DEFAULT_K
+            || self.params.bigram_weight != DEFAULT_BIGRAM_WEIGHT
+            || self.params.alpha != DEFAULT_ALPHA;
 
         let title = if param_changed {
             format!(
-                " Candidates (k={}, λ={:.1}, ε={:.0e}) ",
-                self.params.k, self.params.lambda, self.params.min_freq
+                " Candidates (k={}, λ={:.1}, ε={:.0e}, bw={:.1}, α={:.1}) ",
+                self.params.k,
+                self.params.lambda,
+                self.params.min_freq,
+                self.params.bigram_weight,
+                self.params.alpha,
             )
         } else {
             " Candidates ".to_string()
@@ -703,6 +766,7 @@ impl App {
             Cell::from("Thai"),
             Cell::from("Score"),
             Cell::from("Freq Cost"),
+            Cell::from("Bigram"),
             Cell::from("Seg Pen"),
             Cell::from("Words"),
         ])
@@ -731,6 +795,7 @@ impl App {
                     Cell::from(thai_display),
                     Cell::from(format!("{:.2}", c.score)),
                     Cell::from(format!("{:.2}", c.freq_cost)),
+                    Cell::from(format!("{:.2}", c.bigram_cost)),
                     Cell::from(format!("{:.2}", c.seg_penalty)),
                     Cell::from(format!("{}", c.word_count())),
                 ])
@@ -742,6 +807,7 @@ impl App {
             Constraint::Min(16),
             Constraint::Length(8),
             Constraint::Length(10),
+            Constraint::Length(8),
             Constraint::Length(8),
             Constraint::Length(6),
         ];
@@ -765,18 +831,28 @@ impl App {
                 Style::default().fg(Color::DarkGray),
             )])
         } else {
+            let ctx_display = if self.committed_context.is_empty() {
+                "<BOS>".to_string()
+            } else {
+                format!("[{}]", self.committed_context.join(", "))
+            };
+            let ngram_label = if self.ngram.is_some() { "ON" } else { "OFF" };
             Line::from(vec![Span::raw(format!(
-                " Edges: {} │ Scored in: {:.0?} │ λ={:.1} ε={:.0e} k={}",
+                " Edges: {} │ {:.0?} │ λ={:.1} ε={:.0e} k={} bw={:.1} α={:.1} │ Ctx: {} │ Ngram: {}",
                 self.lattice_edges.len(),
                 self.scoring_duration,
                 self.params.lambda,
                 self.params.min_freq,
                 self.params.k,
+                self.params.bigram_weight,
+                self.params.alpha,
+                ctx_display,
+                ngram_label,
             ))])
         };
 
         let hints = Line::from(vec![Span::styled(
-            " [F1] Help  [F2] Lattice  [F3] Inspector  [F5] Tests  [Ctrl+S] Save  [Esc] Quit",
+            " [F1] Help  [F2] Lattice  [F3] Inspector  [F5] Tests  [Enter] Commit  [Ctrl+X] Clear ctx  [Esc] Quit",
             Style::default().fg(Color::DarkGray),
         )]);
 
@@ -881,8 +957,7 @@ impl App {
 
             if edge_count > chunks[1].height.saturating_sub(3) as usize {
                 let scroll_pos = self.lattice_table_state.selected().unwrap_or(0);
-                let mut scrollbar_state =
-                    ScrollbarState::new(edge_count).position(scroll_pos);
+                let mut scrollbar_state = ScrollbarState::new(edge_count).position(scroll_pos);
                 let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight);
                 frame.render_stateful_widget(scrollbar, chunks[1], &mut scrollbar_state);
             }
@@ -902,18 +977,18 @@ impl App {
         let has_target = self.inspector_target.is_some();
         let constraints = if has_target {
             vec![
-                Constraint::Length(3),  // Input
-                Constraint::Length(3),  // Target
+                Constraint::Length(3), // Input
+                Constraint::Length(3), // Target
                 Constraint::Min(5),    // Trie matches
-                Constraint::Length(8),  // Diagnosis
-                Constraint::Length(2),  // Hints
+                Constraint::Length(8), // Diagnosis
+                Constraint::Length(2), // Hints
             ]
         } else {
             vec![
-                Constraint::Length(3),  // Input
-                Constraint::Length(3),  // Target
+                Constraint::Length(3), // Input
+                Constraint::Length(3), // Target
                 Constraint::Min(5),    // Trie matches
-                Constraint::Length(2),  // Hints
+                Constraint::Length(2), // Hints
             ]
         };
 
@@ -923,10 +998,17 @@ impl App {
             .split(area);
 
         // --- Input box ---
-        let cursor_indicator = if self.inspector_input.is_empty() { "│" } else { "" };
+        let cursor_indicator = if self.inspector_input.is_empty() {
+            "│"
+        } else {
+            ""
+        };
         let input_text = format!("> {}{}", self.inspector_input, cursor_indicator);
-        let input_widget = Paragraph::new(input_text)
-            .block(Block::default().borders(Borders::ALL).title(" Inspector Input "));
+        let input_widget = Paragraph::new(input_text).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Inspector Input "),
+        );
         frame.render_widget(input_widget, chunks[0]);
 
         if !self.inspector_entering_target {
@@ -957,11 +1039,9 @@ impl App {
             Style::default().fg(Color::DarkGray)
         };
 
-        let target_widget = Paragraph::new(target_text).style(target_style).block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(" Target "),
-        );
+        let target_widget = Paragraph::new(target_text)
+            .style(target_style)
+            .block(Block::default().borders(Borders::ALL).title(" Target "));
         frame.render_widget(target_widget, chunks[1]);
 
         if self.inspector_entering_target {
@@ -1097,7 +1177,13 @@ impl App {
 
         // Run ranking to see where it lands
         if !self.inspector_input.is_empty() {
-            let result = rank_candidates(&self.inspector_input, &self.dictionary, &self.params);
+            let result = rank_candidates(
+                &self.inspector_input,
+                &self.dictionary,
+                self.ngram.as_ref(),
+                &self.committed_context,
+                &self.params,
+            );
             let candidates = &result.candidates;
 
             if let Some(rank) = candidates.iter().position(|c| c.thai == *target) {
@@ -1116,10 +1202,7 @@ impl App {
                 }
             } else if !candidates.is_empty() {
                 lines.push(Line::from(Span::styled(
-                    format!(
-                        "  ✗ Target not in top {} candidates",
-                        candidates.len()
-                    ),
+                    format!("  ✗ Target not in top {} candidates", candidates.len()),
                     Style::default().fg(Color::Red),
                 )));
                 lines.push(Line::from(format!(
@@ -1143,7 +1226,7 @@ impl App {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Min(5),   // Results
+                Constraint::Min(5),    // Results
                 Constraint::Length(3), // Summary
                 Constraint::Length(2), // Hints
             ])
@@ -1184,10 +1267,7 @@ impl App {
                 } else {
                     Style::default().fg(Color::Red)
                 };
-                let actual = r
-                    .actual_thai
-                    .as_deref()
-                    .unwrap_or("(none)");
+                let actual = r.actual_thai.as_deref().unwrap_or("(none)");
                 let rank = r
                     .actual_rank
                     .map(|n| format!("#{}", n))
@@ -1233,19 +1313,16 @@ impl App {
 
         let table = Table::new(rows, widths)
             .header(header)
-            .block(
-                Block::default().borders(Borders::ALL).title(format!(
-                    " Regression Tests ({}{}) ",
-                    display_count, filter_label
-                )),
-            )
+            .block(Block::default().borders(Borders::ALL).title(format!(
+                " Regression Tests ({}{}) ",
+                display_count, filter_label
+            )))
             .row_highlight_style(Style::default().add_modifier(Modifier::REVERSED));
         frame.render_stateful_widget(table, chunks[0], &mut self.regression_table_state);
 
         if display_count > chunks[0].height.saturating_sub(3) as usize {
             let scroll_pos = self.regression_table_state.selected().unwrap_or(0);
-            let mut scrollbar_state =
-                ScrollbarState::new(display_count).position(scroll_pos);
+            let mut scrollbar_state = ScrollbarState::new(display_count).position(scroll_pos);
             let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight);
             frame.render_stateful_widget(scrollbar, chunks[0], &mut scrollbar_state);
         }
@@ -1257,23 +1334,17 @@ impl App {
             "N/A".to_string()
         };
 
-        let summary = Paragraph::new(vec![
-            Line::from(format!(
-                "  Passed: {}/{}  ({})  │  Failed: {}  │  λ={:.1}  ε={:.0e}  k={}",
-                passed,
-                total,
-                pass_rate,
-                failed,
-                self.params.lambda,
-                self.params.min_freq,
-                self.params.k,
-            )),
-        ])
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(" Summary "),
-        );
+        let summary = Paragraph::new(vec![Line::from(format!(
+            "  Passed: {}/{}  ({})  │  Failed: {}  │  λ={:.1}  ε={:.0e}  k={}",
+            passed,
+            total,
+            pass_rate,
+            failed,
+            self.params.lambda,
+            self.params.min_freq,
+            self.params.k,
+        ))])
+        .block(Block::default().borders(Borders::ALL).title(" Summary "));
         frame.render_widget(summary, chunks[1]);
 
         // --- Hints ---
@@ -1329,7 +1400,7 @@ impl App {
 
     fn render_help_overlay(&self, frame: &mut Frame) {
         let area = frame.area();
-        let popup = centered_rect(70, 24, area);
+        let popup = centered_rect(70, 30, area);
         frame.render_widget(Clear, popup);
 
         let header_style = Style::default()
@@ -1371,6 +1442,22 @@ impl App {
             Line::from(vec![
                 Span::styled("    Ctrl+E      ", key_style),
                 Span::raw("Cycle ε presets"),
+            ]),
+            Line::from(vec![
+                Span::styled("    Ctrl+B      ", key_style),
+                Span::raw("Cycle bigram weight presets"),
+            ]),
+            Line::from(vec![
+                Span::styled("    Ctrl+A      ", key_style),
+                Span::raw("Cycle alpha presets"),
+            ]),
+            Line::from(vec![
+                Span::styled("    Enter       ", key_style),
+                Span::raw("Commit top candidate (builds context)"),
+            ]),
+            Line::from(vec![
+                Span::styled("    Ctrl+X      ", key_style),
+                Span::raw("Clear committed context"),
             ]),
             Line::from(vec![
                 Span::styled("    Ctrl+U      ", key_style),
@@ -1443,8 +1530,12 @@ fn print_usage() {
     println!("Usage: thaime_tui [OPTIONS]");
     println!();
     println!("Options:");
-    println!("  --test-file <PATH>  Regression test file (default: {})", DEFAULT_TEST_FILE);
-    println!("  --help              Show this help message");
+    println!(
+        "  --test-file <PATH>    Regression test file (default: {})",
+        DEFAULT_TEST_FILE
+    );
+    println!("  --ngram-dir <PATH>    Directory containing ngrams_*_merged_raw.tsv files");
+    println!("  --help                Show this help message");
     println!();
     println!("In-app help: press F1 or ? for keybind reference.");
 }
@@ -1452,6 +1543,7 @@ fn print_usage() {
 fn main() -> io::Result<()> {
     let args: Vec<String> = env::args().collect();
     let mut test_file: Option<PathBuf> = None;
+    let mut ngram_dir: Option<PathBuf> = None;
 
     let mut i = 1;
     while i < args.len() {
@@ -1468,6 +1560,14 @@ fn main() -> io::Result<()> {
                 }
                 test_file = Some(PathBuf::from(&args[i]));
             }
+            "--ngram-dir" => {
+                i += 1;
+                if i >= args.len() {
+                    eprintln!("Error: --ngram-dir requires an argument");
+                    process::exit(1);
+                }
+                ngram_dir = Some(PathBuf::from(&args[i]));
+            }
             other => {
                 eprintln!("Unknown argument: {}", other);
                 print_usage();
@@ -1477,8 +1577,45 @@ fn main() -> io::Result<()> {
         i += 1;
     }
 
+    // Try to find ngram dir: explicit arg, env var, or conventional path
+    let ngram_dir = ngram_dir
+        .or_else(|| env::var("THAIME_NGRAM_DIR").ok().map(PathBuf::from))
+        .or_else(|| {
+            let conventional = PathBuf::from("data/input");
+            if conventional.join("ngrams_1_merged_raw.tsv").exists() {
+                Some(conventional)
+            } else {
+                None
+            }
+        });
+
+    let ngram = if let Some(ref dir) = ngram_dir {
+        let unigram_path = dir.join("ngrams_1_merged_raw.tsv");
+        let bigram_path = dir.join("ngrams_2_merged_raw.tsv");
+        match NgramData::from_tsv_files(&unigram_path, &bigram_path, None) {
+            Ok(data) => {
+                eprintln!(
+                    "Loaded n-gram data: {} unigrams, {} bigrams",
+                    data.unigram_count(),
+                    data.bigram_count(),
+                );
+                Some(data)
+            }
+            Err(e) => {
+                eprintln!(
+                    "Warning: Failed to load n-gram data from {}: {}",
+                    dir.display(),
+                    e
+                );
+                None
+            }
+        }
+    } else {
+        None
+    };
+
     let dict = Dictionary::from_embedded();
-    let mut app = App::new(dict);
+    let mut app = App::new(dict, ngram);
     if let Some(path) = test_file {
         app.test_file_path = path;
     }
