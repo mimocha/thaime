@@ -158,24 +158,35 @@ fn parse_ngram_dir() -> Option<PathBuf> {
 fn load_ngram_data(dir: &std::path::Path) -> Option<NgramData> {
     let unigram_path = dir.join("ngrams_1_merged_raw.tsv");
     let bigram_path = dir.join("ngrams_2_merged_raw.tsv");
+    let trigram_path = dir.join("ngrams_3_merged_raw.tsv");
 
     if !unigram_path.exists() || !bigram_path.exists() {
-        eprintln!(
-            "Warning: n-gram files not found in {}",
-            dir.display()
-        );
+        eprintln!("Warning: n-gram files not found in {}", dir.display());
         return None;
     }
+
+    let trigram_arg = if trigram_path.exists() {
+        Some(trigram_path.as_path())
+    } else {
+        None
+    };
 
     print!("Loading n-gram data from {} ... ", dir.display());
     io::stdout().flush().unwrap();
 
-    match NgramData::from_tsv_files(&unigram_path, &bigram_path, None) {
+    match NgramData::from_tsv_files(
+        &unigram_path,
+        &bigram_path,
+        trigram_arg,
+        thaime_engine::ngram::DEFAULT_TRIGRAM_MIN_COUNT,
+        None,
+    ) {
         Ok(ng) => {
             println!(
-                "done ({} unigrams, {} bigrams)",
+                "done ({} unigrams, {} bigrams, {} trigrams)",
                 ng.unigram_count(),
-                ng.bigram_count()
+                ng.bigram_count(),
+                ng.trigram_count(),
             );
             Some(ng)
         }
@@ -198,7 +209,7 @@ fn display_candidates(ctx: &InputContext) {
     // Header
     println!(
         "  {:>2}  {:16} {:>7} {:>7} {:>7} {:>7}  {:>5}",
-        "#", "Thai", "Total", "Freq", "Bigram", "SegPen", "Words"
+        "#", "Thai", "Total", "Freq", "Ngram", "SegPen", "Words"
     );
 
     for (i, c) in candidates.iter().enumerate() {
@@ -208,7 +219,7 @@ fn display_candidates(ctx: &InputContext) {
             c.thai,
             c.score,
             c.freq_cost,
-            c.bigram_cost,
+            c.ngram_cost,
             c.seg_penalty,
             c.word_count(),
         );

@@ -18,7 +18,7 @@ use crate::trie::Dictionary;
 const MAX_BUFFER_LEN: usize = 50;
 
 /// Maximum context depth (number of previously committed words to track).
-const MAX_CONTEXT_DEPTH: usize = 1;
+pub const MAX_CONTEXT_DEPTH: usize = 2;
 
 /// Stateful input session context.
 ///

@@ -35,10 +35,11 @@ use ratatui::{
 
 use serde::{Deserialize, Serialize};
 
+use thaime_engine::context::MAX_CONTEXT_DEPTH;
 use thaime_engine::ngram::NgramData;
 use thaime_engine::ranking::{
-    rank_candidates, Candidate, LatticeEdge, RankingParams, DEFAULT_ALPHA, DEFAULT_BIGRAM_WEIGHT,
-    DEFAULT_K, DEFAULT_LAMBDA, DEFAULT_MIN_FREQ,
+    rank_candidates, Candidate, LatticeEdge, RankingParams, DEFAULT_ALPHA, DEFAULT_K,
+    DEFAULT_LAMBDA, DEFAULT_MIN_FREQ, DEFAULT_NGRAM_WEIGHT,
 };
 use thaime_engine::trie::Dictionary;
 
@@ -309,12 +310,12 @@ impl App {
                 self.refresh();
             }
 
-            // Parameter tuning: bigram_weight (Ctrl+B cycles through presets)
+            // Parameter tuning: ngram_weight (Ctrl+B cycles through presets)
             (KeyCode::Char('b'), m) if m.contains(KeyModifiers::CONTROL) => {
                 const BW_PRESETS: &[f64] = &[0.0, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0];
-                let cur = self.params.bigram_weight;
+                let cur = self.params.ngram_weight;
                 let next_idx = BW_PRESETS.iter().position(|&v| v > cur).unwrap_or(0);
-                self.params.bigram_weight = BW_PRESETS[next_idx];
+                self.params.ngram_weight = BW_PRESETS[next_idx];
                 self.refresh();
             }
 
@@ -334,10 +335,10 @@ impl App {
                     for word in &c.words {
                         self.committed_context.push(word.thai.clone());
                     }
-                    // Keep only last word for bigram context
+                    // Keep last 2 words for trigram context
                     let len = self.committed_context.len();
-                    if len > 1 {
-                        self.committed_context.drain(..len - 1);
+                    if len > 2 {
+                        self.committed_context.drain(..len - MAX_CONTEXT_DEPTH);
                     }
                     self.status_message = Some(format!("Committed: {}", c.thai));
                     self.input.clear();
@@ -745,7 +746,7 @@ impl App {
         let param_changed = self.params.lambda != DEFAULT_LAMBDA
             || self.params.min_freq != DEFAULT_MIN_FREQ
             || self.params.k != DEFAULT_K
-            || self.params.bigram_weight != DEFAULT_BIGRAM_WEIGHT
+            || self.params.ngram_weight != DEFAULT_NGRAM_WEIGHT
             || self.params.alpha != DEFAULT_ALPHA;
 
         let title = if param_changed {
@@ -754,7 +755,7 @@ impl App {
                 self.params.k,
                 self.params.lambda,
                 self.params.min_freq,
-                self.params.bigram_weight,
+                self.params.ngram_weight,
                 self.params.alpha,
             )
         } else {
@@ -766,7 +767,7 @@ impl App {
             Cell::from("Thai"),
             Cell::from("Score"),
             Cell::from("Freq Cost"),
-            Cell::from("Bigram"),
+            Cell::from("Ngram"),
             Cell::from("Seg Pen"),
             Cell::from("Words"),
         ])
@@ -795,7 +796,7 @@ impl App {
                     Cell::from(thai_display),
                     Cell::from(format!("{:.2}", c.score)),
                     Cell::from(format!("{:.2}", c.freq_cost)),
-                    Cell::from(format!("{:.2}", c.bigram_cost)),
+                    Cell::from(format!("{:.2}", c.ngram_cost)),
                     Cell::from(format!("{:.2}", c.seg_penalty)),
                     Cell::from(format!("{}", c.word_count())),
                 ])
@@ -844,7 +845,7 @@ impl App {
                 self.params.lambda,
                 self.params.min_freq,
                 self.params.k,
-                self.params.bigram_weight,
+                self.params.ngram_weight,
                 self.params.alpha,
                 ctx_display,
                 ngram_label,
@@ -1592,12 +1593,25 @@ fn main() -> io::Result<()> {
     let ngram = if let Some(ref dir) = ngram_dir {
         let unigram_path = dir.join("ngrams_1_merged_raw.tsv");
         let bigram_path = dir.join("ngrams_2_merged_raw.tsv");
-        match NgramData::from_tsv_files(&unigram_path, &bigram_path, None) {
+        let trigram_path = dir.join("ngrams_3_merged_raw.tsv");
+        let trigram_arg = if trigram_path.exists() {
+            Some(trigram_path.as_path())
+        } else {
+            None
+        };
+        match NgramData::from_tsv_files(
+            &unigram_path,
+            &bigram_path,
+            trigram_arg,
+            thaime_engine::ngram::DEFAULT_TRIGRAM_MIN_COUNT,
+            None,
+        ) {
             Ok(data) => {
                 eprintln!(
-                    "Loaded n-gram data: {} unigrams, {} bigrams",
+                    "Loaded n-gram data: {} unigrams, {} bigrams, {} trigrams",
                     data.unigram_count(),
                     data.bigram_count(),
+                    data.trigram_count(),
                 );
                 Some(data)
             }

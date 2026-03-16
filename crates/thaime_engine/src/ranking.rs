@@ -10,11 +10,11 @@
 //!
 //! Scoring formula:
 //!   unigram_cost = -ln(max(freq, MIN_FREQ)) + LAMBDA
-//!   bigram_bonus = bigram_weight * -ln(stupid_backoff_score)
-//!   edge_cost = unigram_cost + bigram_bonus
+//!   ngram_bonus  = ngram_weight * -ln(stupid_backoff_score)
+//!   edge_cost = unigram_cost + ngram_bonus
 //!   path_cost = sum of edge costs
 //!
-//! When n-gram data is not provided, bigram_bonus is 0 and scoring
+//! When n-gram data is not provided, ngram_bonus is 0 and scoring
 //! reduces to the original unigram-only formula.
 //!
 //! Lower cost = better candidate.
@@ -33,8 +33,8 @@ pub const DEFAULT_MIN_FREQ: f64 = 1e-4;
 /// Default number of candidates to track per lattice position.
 pub const DEFAULT_K: usize = 10;
 
-/// Default bigram weight multiplier.
-pub const DEFAULT_BIGRAM_WEIGHT: f64 = 2.0;
+/// Default n-gram weight multiplier.
+pub const DEFAULT_NGRAM_WEIGHT: f64 = 2.0;
 
 /// Default Stupid Backoff penalty factor.
 pub const DEFAULT_ALPHA: f64 = 0.4;
@@ -51,8 +51,8 @@ pub struct RankingParams {
     pub min_freq: f64,
     /// Number of best candidates to track per lattice position.
     pub k: usize,
-    /// Bigram scoring weight multiplier.
-    pub bigram_weight: f64,
+    /// N-gram scoring weight multiplier.
+    pub ngram_weight: f64,
     /// Stupid Backoff penalty factor.
     pub alpha: f64,
 }
@@ -63,7 +63,7 @@ impl Default for RankingParams {
             lambda: DEFAULT_LAMBDA,
             min_freq: DEFAULT_MIN_FREQ,
             k: DEFAULT_K,
-            bigram_weight: DEFAULT_BIGRAM_WEIGHT,
+            ngram_weight: DEFAULT_NGRAM_WEIGHT,
             alpha: DEFAULT_ALPHA,
         }
     }
@@ -97,8 +97,8 @@ pub struct Candidate {
     pub freq_cost: f64,
     /// Total segmentation penalty: word_count * LAMBDA.
     pub seg_penalty: f64,
-    /// Total bigram scoring contribution.
-    pub bigram_cost: f64,
+    /// Total n-gram scoring contribution.
+    pub ngram_cost: f64,
 }
 
 impl Candidate {
@@ -134,9 +134,14 @@ pub struct LatticeEdge {
 struct PartialPath {
     cost: f64,
     words: Vec<CandidateWord>,
-    /// Thai text of the last word in the path, for bigram state tracking.
-    last_thai: Option<String>,
+    /// Thai text of the second-to-last word in the path (for trigram context).
+    prev_thai_2: Option<String>,
+    /// Thai text of the last word in the path (for n-gram state tracking).
+    prev_thai_1: Option<String>,
 }
+
+/// State key for the Viterbi DP: (prev_word_2, prev_word_1) → k-best paths.
+type StateMap = HashMap<(Option<String>, Option<String>), Vec<PartialPath>>;
 
 // ---------------------------------------------------------------------------
 // Core algorithm
@@ -156,9 +161,10 @@ pub struct RankingResult {
 /// ascending cost (best first). Returns an empty list if no complete tiling
 /// of the input exists. Also returns the full lattice for inspection.
 ///
-/// When `ngram` is `Some`, bigram scoring is applied using Stupid Backoff.
-/// The `context` slice provides previously committed Thai words; the last
-/// entry is used as the bigram context for the first word in each path.
+/// When `ngram` is `Some`, n-gram scoring is applied using Stupid Backoff
+/// with trigram→bigram→unigram fallback. The `context` slice provides
+/// previously committed Thai words; up to the last two entries are used
+/// as n-gram context for the first word(s) in each path.
 /// When `ngram` is `None`, the function behaves identically to unigram-only.
 pub fn rank_candidates(
     input: &str,
@@ -205,29 +211,35 @@ pub fn rank_candidates(
 
     // --- Viterbi forward pass with k-best tracking ---
     //
-    // With bigram scoring, state is keyed by (position, prev_thai) so that
-    // different previous words at the same position maintain separate paths.
+    // With trigram scoring, state is keyed by (position, prev_thai_2, prev_thai_1)
+    // so that different 2-word histories at the same position maintain separate
+    // paths.
     //
-    // best[pos] maps prev_thai → k-best partial paths ending at that position.
-    // At position 0, the seed uses the committed context as prev_thai.
+    // best[pos] maps (prev_thai_2, prev_thai_1) → k-best partial paths ending
+    // at that position. At position 0, the seed uses the committed context.
 
-    let context_prev: Option<String> = context.last().cloned();
+    let context_prev_2: Option<String> = if context.len() >= 2 {
+        Some(context[context.len() - 2].clone())
+    } else {
+        None
+    };
+    let context_prev_1: Option<String> = context.last().cloned();
     let beam_limit = params.k * 4; // global beam per position
 
-    let mut best: Vec<HashMap<Option<String>, Vec<PartialPath>>> =
-        (0..=n).map(|_| HashMap::new()).collect();
+    let mut best: Vec<StateMap> = (0..=n).map(|_| HashMap::new()).collect();
     best[0]
-        .entry(context_prev.clone())
+        .entry((context_prev_2.clone(), context_prev_1.clone()))
         .or_default()
         .push(PartialPath {
             cost: 0.0,
             words: Vec::new(),
-            last_thai: context_prev,
+            prev_thai_2: context_prev_2,
+            prev_thai_1: context_prev_1,
         });
 
     for end in 1..=n {
-        // Collect new candidate paths into a temporary map keyed by new prev_thai
-        let mut new_states: HashMap<Option<String>, Vec<PartialPath>> = HashMap::new();
+        // Collect new candidate paths into a temporary map keyed by (new_prev_2, new_prev_1)
+        let mut new_states: StateMap = HashMap::new();
 
         for &edge_idx in &edges_by_end[end] {
             let edge = &all_edges[edge_idx];
@@ -235,9 +247,10 @@ pub fn rank_candidates(
                 for path in paths {
                     let unigram_cost = edge.cost;
 
-                    let bigram_bonus = if let Some(ngram_data) = ngram {
-                        let score = ngram_data.bigram_score(
-                            path.last_thai.as_deref(),
+                    let ngram_bonus = if let Some(ngram_data) = ngram {
+                        let score = ngram_data.trigram_score(
+                            path.prev_thai_2.as_deref(),
+                            path.prev_thai_1.as_deref(),
                             &edge.thai,
                             params.alpha,
                         );
@@ -247,7 +260,7 @@ pub fn rank_candidates(
                         0.0
                     };
 
-                    let edge_cost = unigram_cost + params.bigram_weight * bigram_bonus;
+                    let edge_cost = unigram_cost + params.ngram_weight * ngram_bonus;
 
                     let mut new_words = path.words.clone();
                     new_words.push(CandidateWord {
@@ -256,15 +269,15 @@ pub fn rank_candidates(
                         cost: edge.cost, // store unigram cost per word
                     });
 
-                    let new_prev = Some(edge.thai.clone());
-                    new_states
-                        .entry(new_prev.clone())
-                        .or_default()
-                        .push(PartialPath {
-                            cost: path.cost + edge_cost,
-                            words: new_words,
-                            last_thai: new_prev,
-                        });
+                    let new_prev_2 = path.prev_thai_1.clone();
+                    let new_prev_1 = Some(edge.thai.clone());
+                    let state_key = (new_prev_2.clone(), new_prev_1.clone());
+                    new_states.entry(state_key).or_default().push(PartialPath {
+                        cost: path.cost + edge_cost,
+                        words: new_words,
+                        prev_thai_2: new_prev_2,
+                        prev_thai_1: new_prev_1,
+                    });
                 }
             }
         }
@@ -293,7 +306,7 @@ pub fn rank_candidates(
             new_states = HashMap::new();
             for path in all_paths {
                 new_states
-                    .entry(path.last_thai.clone())
+                    .entry((path.prev_thai_2.clone(), path.prev_thai_1.clone()))
                     .or_default()
                     .push(path);
             }
@@ -321,14 +334,14 @@ pub fn rank_candidates(
                 .map(|w| -(w.frequency.max(params.min_freq).ln()))
                 .sum();
             let seg_penalty = path.words.len() as f64 * params.lambda;
-            let bigram_cost = path.cost - freq_cost - seg_penalty;
+            let ngram_cost = path.cost - freq_cost - seg_penalty;
             Candidate {
                 thai,
                 words: path.words.clone(),
                 score: path.cost,
                 freq_cost,
                 seg_penalty,
-                bigram_cost,
+                ngram_cost,
             }
         })
         .collect();
@@ -554,5 +567,148 @@ mod tests {
         // Second word: ใน, freq=0.012
         assert_eq!(best.words[1].thai, "ใน");
         assert!((best.words[1].frequency - 0.012).abs() < 1e-10);
+    }
+
+    // --- N-gram ranking integration tests ---
+
+    /// Build a small NgramData matching the test dict words.
+    ///
+    /// Unigrams: ไม่=1000, ใน=800, ไหม=500, มา=300, การ=600, ใหม่=400, สวัสดี=100
+    /// Bigrams: (ไม่,ไหม)=200, (ไม่,ได้)=150, (ใน,การ)=100
+    /// Trigrams: (ไม่,ได้,มา)=50
+    fn build_test_ngram() -> NgramData {
+        use std::collections::HashMap;
+        use crate::ngram::NgramData;
+
+        let mut unigrams = HashMap::new();
+        unigrams.insert("ไม่".to_string(), 1000);
+        unigrams.insert("ใน".to_string(), 800);
+        unigrams.insert("ไหม".to_string(), 500);
+        unigrams.insert("มา".to_string(), 300);
+        unigrams.insert("การ".to_string(), 600);
+        unigrams.insert("ใหม่".to_string(), 400);
+        unigrams.insert("สวัสดี".to_string(), 100);
+
+        let mut bigrams = HashMap::new();
+        bigrams.insert(("ไม่".to_string(), "ไหม".to_string()), 200);
+        bigrams.insert(("ไม่".to_string(), "ได้".to_string()), 150);
+        bigrams.insert(("ใน".to_string(), "การ".to_string()), 100);
+
+        let mut trigrams = HashMap::new();
+        trigrams.insert(
+            ("ไม่".to_string(), "ได้".to_string(), "มา".to_string()),
+            50,
+        );
+
+        NgramData::from_raw(unigrams, bigrams, trigrams)
+    }
+
+    #[test]
+    fn test_bigram_changes_ranking() {
+        // With context ["ไม่"] and bigram(ไม่,ไหม)=200, ไหม should be boosted
+        // relative to unigram-only ranking where ไม่ > ไหม > ใหม่.
+        let dict = build_test_dict();
+        let ngram = build_test_ngram();
+        let context = vec!["ไม่".to_string()];
+        let params = RankingParams::default();
+
+        let with_ngram =
+            rank_candidates("mai", &dict, Some(&ngram), &context, &params).candidates;
+        let without_ngram =
+            rank_candidates("mai", &dict, None, &[], &params).candidates;
+
+        // Without n-gram: ไม่ is first (highest freq)
+        assert_eq!(without_ngram[0].thai, "ไม่");
+
+        // With n-gram and context ["ไม่"]: ไหม should be boosted by bigram(ไม่,ไหม)
+        // Find ไหม's score in both results
+        let mai_score_without = without_ngram.iter().find(|c| c.thai == "ไหม").unwrap().score;
+        let mai_score_with = with_ngram.iter().find(|c| c.thai == "ไหม").unwrap().score;
+        let mai1_score_without = without_ngram.iter().find(|c| c.thai == "ไม่").unwrap().score;
+        let mai1_score_with = with_ngram.iter().find(|c| c.thai == "ไม่").unwrap().score;
+
+        // ไหม's relative advantage should improve with bigram context
+        let gap_without = mai_score_without - mai1_score_without;
+        let gap_with = mai_score_with - mai1_score_with;
+        assert!(
+            gap_with < gap_without,
+            "Bigram context should narrow or reverse gap: gap_with={gap_with}, gap_without={gap_without}"
+        );
+    }
+
+    #[test]
+    fn test_trigram_changes_ranking() {
+        // 2-word context (ไม่, ได้) should give a better score for มา than
+        // 1-word context (ได้) alone, because trigram(ไม่,ได้,มา) exists.
+        let dict = build_test_dict();
+        let ngram = build_test_ngram();
+        let params = RankingParams::default();
+
+        let context_2 = vec!["ไม่".to_string(), "ได้".to_string()];
+        let context_1 = vec!["ได้".to_string()];
+
+        let result_2 = rank_candidates("ma", &dict, Some(&ngram), &context_2, &params).candidates;
+        let result_1 = rank_candidates("ma", &dict, Some(&ngram), &context_1, &params).candidates;
+
+        let score_2 = result_2.iter().find(|c| c.thai == "มา").unwrap().score;
+        let score_1 = result_1.iter().find(|c| c.thai == "มา").unwrap().score;
+
+        // With trigram hit, cost should be lower (better)
+        assert!(
+            score_2 < score_1,
+            "Trigram context should give lower cost: score_2={score_2}, score_1={score_1}"
+        );
+    }
+
+    #[test]
+    fn test_ngram_weight_zero_matches_unigram() {
+        // With ngram_weight=0, n-gram data should have no effect on scores.
+        let dict = build_test_dict();
+        let ngram = build_test_ngram();
+        let context = vec!["ไม่".to_string()];
+        let params_zero = RankingParams {
+            ngram_weight: 0.0,
+            ..Default::default()
+        };
+        let params_default = RankingParams::default();
+
+        let with_zero =
+            rank_candidates("mai", &dict, Some(&ngram), &context, &params_zero).candidates;
+        let without_ngram =
+            rank_candidates("mai", &dict, None, &[], &params_default).candidates;
+
+        // Same number of candidates, same order, same scores
+        assert_eq!(with_zero.len(), without_ngram.len());
+        for (a, b) in with_zero.iter().zip(without_ngram.iter()) {
+            assert_eq!(a.thai, b.thai);
+            assert!(
+                (a.score - b.score).abs() < 1e-10,
+                "Scores should match: {} ({}) vs {} ({})",
+                a.thai, a.score, b.thai, b.score
+            );
+        }
+    }
+
+    #[test]
+    fn test_context_empty_matches_no_ngram_order() {
+        // BOS (empty context) with n-gram data should preserve unigram ranking order,
+        // since BOS trigram_score degrades to unigram_prob (no alpha penalty after fix).
+        let dict = build_test_dict();
+        let ngram = build_test_ngram();
+        let params = RankingParams::default();
+
+        let with_bos =
+            rank_candidates("mai", &dict, Some(&ngram), &[], &params).candidates;
+        let without_ngram =
+            rank_candidates("mai", &dict, None, &[], &params).candidates;
+
+        // Ranking order should be preserved (ไม่ > ไหม > ใหม่)
+        assert_eq!(with_bos.len(), without_ngram.len());
+        for (a, b) in with_bos.iter().zip(without_ngram.iter()) {
+            assert_eq!(
+                a.thai, b.thai,
+                "BOS ranking order should match unigram-only order"
+            );
+        }
     }
 }
