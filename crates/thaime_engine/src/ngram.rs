@@ -25,7 +25,7 @@ use std::io::{self, BufRead};
 use std::path::Path;
 
 /// Default minimum count threshold for trigram filtering.
-pub const DEFAULT_TRIGRAM_MIN_COUNT: u64 = 5;
+pub const DEFAULT_TRIGRAM_MIN_COUNT: u64 = 10;
 
 /// N-gram count data for Stupid Backoff scoring.
 #[derive(Debug)]
@@ -37,7 +37,7 @@ pub struct NgramData {
 }
 
 /// Floor probability for unseen words to avoid log(0).
-const FLOOR_PROB: f64 = 1e-6;
+const FLOOR_PROB: f64 = 6e-6;
 
 impl NgramData {
     /// Load n-gram data from raw TSV count files.

@@ -28,7 +28,7 @@ use crate::trie::Dictionary;
 pub const DEFAULT_LAMBDA: f64 = 1.0;
 
 /// Default floor for word frequency to avoid -ln(0).
-pub const DEFAULT_MIN_FREQ: f64 = 1e-4;
+pub const DEFAULT_MIN_FREQ: f64 = 5e-6;
 
 /// Default number of candidates to track per lattice position.
 pub const DEFAULT_K: usize = 10;
@@ -74,7 +74,7 @@ impl Default for RankingParams {
 // ---------------------------------------------------------------------------
 
 /// A single word within a candidate path.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct CandidateWord {
     /// Thai text for this word.
     pub thai: String,
@@ -85,7 +85,7 @@ pub struct CandidateWord {
 }
 
 /// A ranked candidate: one possible interpretation of the full Latin input.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct Candidate {
     /// Concatenated Thai text (all words joined).
     pub thai: String,
@@ -577,8 +577,8 @@ mod tests {
     /// Bigrams: (ไม่,ไหม)=200, (ไม่,ได้)=150, (ใน,การ)=100
     /// Trigrams: (ไม่,ได้,มา)=50
     fn build_test_ngram() -> NgramData {
-        use std::collections::HashMap;
         use crate::ngram::NgramData;
+        use std::collections::HashMap;
 
         let mut unigrams = HashMap::new();
         unigrams.insert("ไม่".to_string(), 1000);
@@ -595,10 +595,7 @@ mod tests {
         bigrams.insert(("ใน".to_string(), "การ".to_string()), 100);
 
         let mut trigrams = HashMap::new();
-        trigrams.insert(
-            ("ไม่".to_string(), "ได้".to_string(), "มา".to_string()),
-            50,
-        );
+        trigrams.insert(("ไม่".to_string(), "ได้".to_string(), "มา".to_string()), 50);
 
         NgramData::from_raw(unigrams, bigrams, trigrams)
     }
@@ -612,17 +609,19 @@ mod tests {
         let context = vec!["ไม่".to_string()];
         let params = RankingParams::default();
 
-        let with_ngram =
-            rank_candidates("mai", &dict, Some(&ngram), &context, &params).candidates;
-        let without_ngram =
-            rank_candidates("mai", &dict, None, &[], &params).candidates;
+        let with_ngram = rank_candidates("mai", &dict, Some(&ngram), &context, &params).candidates;
+        let without_ngram = rank_candidates("mai", &dict, None, &[], &params).candidates;
 
         // Without n-gram: ไม่ is first (highest freq)
         assert_eq!(without_ngram[0].thai, "ไม่");
 
         // With n-gram and context ["ไม่"]: ไหม should be boosted by bigram(ไม่,ไหม)
         // Find ไหม's score in both results
-        let mai_score_without = without_ngram.iter().find(|c| c.thai == "ไหม").unwrap().score;
+        let mai_score_without = without_ngram
+            .iter()
+            .find(|c| c.thai == "ไหม")
+            .unwrap()
+            .score;
         let mai_score_with = with_ngram.iter().find(|c| c.thai == "ไหม").unwrap().score;
         let mai1_score_without = without_ngram.iter().find(|c| c.thai == "ไม่").unwrap().score;
         let mai1_score_with = with_ngram.iter().find(|c| c.thai == "ไม่").unwrap().score;
@@ -674,8 +673,7 @@ mod tests {
 
         let with_zero =
             rank_candidates("mai", &dict, Some(&ngram), &context, &params_zero).candidates;
-        let without_ngram =
-            rank_candidates("mai", &dict, None, &[], &params_default).candidates;
+        let without_ngram = rank_candidates("mai", &dict, None, &[], &params_default).candidates;
 
         // Same number of candidates, same order, same scores
         assert_eq!(with_zero.len(), without_ngram.len());
@@ -684,7 +682,10 @@ mod tests {
             assert!(
                 (a.score - b.score).abs() < 1e-10,
                 "Scores should match: {} ({}) vs {} ({})",
-                a.thai, a.score, b.thai, b.score
+                a.thai,
+                a.score,
+                b.thai,
+                b.score
             );
         }
     }
@@ -697,10 +698,8 @@ mod tests {
         let ngram = build_test_ngram();
         let params = RankingParams::default();
 
-        let with_bos =
-            rank_candidates("mai", &dict, Some(&ngram), &[], &params).candidates;
-        let without_ngram =
-            rank_candidates("mai", &dict, None, &[], &params).candidates;
+        let with_bos = rank_candidates("mai", &dict, Some(&ngram), &[], &params).candidates;
+        let without_ngram = rank_candidates("mai", &dict, None, &[], &params).candidates;
 
         // Ranking order should be preserved (ไม่ > ไหม > ใหม่)
         assert_eq!(with_bos.len(), without_ngram.len());

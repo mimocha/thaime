@@ -19,7 +19,7 @@ Thumbs.db
 # Input artifacts (generated from research repo, for building engine)
 data/input/*
 # Dictionary build artifacts (large binary files)
-data/dict/*.bin
+data/dict/*
 
 # Python (for any helper scripts)
 __pycache__/

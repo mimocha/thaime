@@ -207,5 +207,28 @@ fn main() {
         process::exit(1);
     });
 
+    // --- Write combined blob (thaime.dict) for WASM / web demo ---
+    //
+    // Format: [4 bytes: trie_len as u32 LE][trie_bytes][metadata_bytes]
+    // The WASM wrapper splits this blob at load time.
+
+    let trie_len = trie_bytes.len() as u32;
+    let mut combined = Vec::with_capacity(4 + trie_bytes.len() + metadata_bytes.len());
+    combined.extend_from_slice(&trie_len.to_le_bytes());
+    combined.extend_from_slice(&trie_bytes);
+    combined.extend_from_slice(&metadata_bytes);
+
+    let combined_path = output_dir.join("thaime.dict");
+    fs::write(&combined_path, &combined).unwrap_or_else(|e| {
+        eprintln!("Failed to write {}: {}", combined_path.display(), e);
+        process::exit(1);
+    });
+
+    eprintln!(
+        "Combined blob: {} bytes ({:.1} MB)",
+        combined.len(),
+        combined.len() as f64 / 1_048_576.0,
+    );
+
     eprintln!("Dictionary written to {}/", output_dir.display());
 }
