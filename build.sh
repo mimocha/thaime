@@ -63,6 +63,10 @@ wasm-pack build crates/thaime_wasm --target web
 
 # --- Step 6: Copy dict to web demo ---
 echo "--- [6/6] Copying dict to web demo ---"
+
+# Remove old versioned files (avoid stale versions accumulating)
+rm -f web/public/dict/thaime-v*.dict
+
 DICT_FILE="thaime-${VTAG}.dict"
 mkdir -p web/public/dict
 cp "$DICT_DIR/$DICT_FILE" "web/public/dict/$DICT_FILE"

@@ -35,12 +35,12 @@ use ratatui::{
 
 use serde::{Deserialize, Serialize};
 
-use thaime_engine::context::MAX_CONTEXT_DEPTH;
-use thaime_engine::ngram::NgramData;
-use thaime_engine::ranking::{
-    rank_candidates, Candidate, LatticeEdge, RankingParams, DEFAULT_ALPHA, DEFAULT_K,
-    DEFAULT_LAMBDA, DEFAULT_MIN_FREQ, DEFAULT_NGRAM_WEIGHT,
+use thaime_engine::config::{
+    DEFAULT_ALPHA, DEFAULT_K, DEFAULT_LAMBDA, DEFAULT_MIN_FREQ, DEFAULT_NGRAM_WEIGHT,
+    MAX_CONTEXT_DEPTH,
 };
+use thaime_engine::ngram::NgramData;
+use thaime_engine::ranking::{rank_candidates, Candidate, LatticeEdge, RankingParams};
 use thaime_engine::trie::Dictionary;
 
 const MAX_INPUT_LEN: usize = 50;
@@ -1603,7 +1603,7 @@ fn main() -> io::Result<()> {
             &unigram_path,
             &bigram_path,
             trigram_arg,
-            thaime_engine::ngram::DEFAULT_TRIGRAM_MIN_COUNT,
+            thaime_engine::config::DEFAULT_TRIGRAM_MIN_COUNT,
             None,
         ) {
             Ok(data) => {

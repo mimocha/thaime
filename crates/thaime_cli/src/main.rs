@@ -178,7 +178,7 @@ fn load_ngram_data(dir: &std::path::Path) -> Option<NgramData> {
         &unigram_path,
         &bigram_path,
         trigram_arg,
-        thaime_engine::ngram::DEFAULT_TRIGRAM_MIN_COUNT,
+        thaime_engine::config::DEFAULT_TRIGRAM_MIN_COUNT,
         None,
     ) {
         Ok(ng) => {

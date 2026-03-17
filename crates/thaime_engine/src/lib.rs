@@ -6,6 +6,7 @@
 //! - A Rust API for use by other workspace crates (e.g., thaime_cli)
 //! - A C ABI for use by framework frontends (IBus, Fcitx5, etc.)
 
+pub mod config;
 pub mod context;
 pub mod keymap;
 pub mod ngram;

@@ -10,15 +10,10 @@
 //! for the MVP; incremental updates can be added later if profiling shows
 //! a need.
 
+use crate::config::{MAX_BUFFER_LEN, MAX_CONTEXT_DEPTH};
 use crate::ngram::NgramData;
 use crate::ranking::{self, Candidate, LatticeEdge, RankingParams};
 use crate::trie::Dictionary;
-
-/// Maximum input buffer length (bytes). Safety valve against huge lattices.
-const MAX_BUFFER_LEN: usize = 50;
-
-/// Maximum context depth (number of previously committed words to track).
-pub const MAX_CONTEXT_DEPTH: usize = 2;
 
 /// Stateful input session context.
 ///

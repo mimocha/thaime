@@ -21,23 +21,12 @@
 
 use std::collections::{HashMap, HashSet};
 
+use crate::config::{
+    BEAM_MULTIPLIER, DEFAULT_ALPHA, DEFAULT_K, DEFAULT_LAMBDA, DEFAULT_MIN_FREQ,
+    DEFAULT_NGRAM_WEIGHT,
+};
 use crate::ngram::NgramData;
 use crate::trie::Dictionary;
-
-/// Default segmentation penalty per word. Higher = fewer, longer words preferred.
-pub const DEFAULT_LAMBDA: f64 = 1.0;
-
-/// Default floor for word frequency to avoid -ln(0).
-pub const DEFAULT_MIN_FREQ: f64 = 5e-6;
-
-/// Default number of candidates to track per lattice position.
-pub const DEFAULT_K: usize = 10;
-
-/// Default n-gram weight multiplier.
-pub const DEFAULT_NGRAM_WEIGHT: f64 = 2.0;
-
-/// Default Stupid Backoff penalty factor.
-pub const DEFAULT_ALPHA: f64 = 0.4;
 
 /// Parameters controlling the ranking algorithm.
 ///
@@ -224,7 +213,7 @@ pub fn rank_candidates(
         None
     };
     let context_prev_1: Option<String> = context.last().cloned();
-    let beam_limit = params.k * 4; // global beam per position
+    let beam_limit = params.k * BEAM_MULTIPLIER;
 
     let mut best: Vec<StateMap> = (0..=n).map(|_| HashMap::new()).collect();
     best[0]
