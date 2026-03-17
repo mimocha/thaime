@@ -25,7 +25,8 @@ export function loadEngine(
 
     // Fetch the combined dictionary blob from public/dict/
     const base = import.meta.env.BASE_URL ?? '/';
-    const resp = await fetch(`${base}dict/thaime.dict`);
+    const dictFile = import.meta.env.VITE_DICT_FILE ?? 'thaime.dict';
+    const resp = await fetch(`${base}dict/${dictFile}`);
     if (!resp.ok) {
       throw new Error(`Failed to fetch dictionary: ${resp.status} ${resp.statusText}`);
     }

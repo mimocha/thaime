@@ -39,8 +39,13 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Copy dictionary blob
-        run: mkdir -p web/public/dict && cp crates/thaime_wasm/dict/thaime.dict web/public/dict/
+      - name: Copy versioned dictionary blob
+        run: |
+          VTAG="v$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/' | tr '.' '_')"
+          DICT_FILE="thaime-${VTAG}.dict"
+          mkdir -p web/public/dict
+          cp "data/dict/${DICT_FILE}" "web/public/dict/${DICT_FILE}"
+          echo "VITE_DICT_FILE=${DICT_FILE}" > web/.env
 
       - name: Install npm dependencies
         working-directory: web

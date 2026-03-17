@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "prebuild": "mkdir -p public/dict && cp ../crates/thaime_wasm/dict/thaime.dict public/dict/"
+    "prebuild": "mkdir -p public/dict && cp ../data/dict/thaime-v*.dict public/dict/"
   },
   "dependencies": {
     "react": "^19.0.0",
