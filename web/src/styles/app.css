@@ -82,7 +82,7 @@ body {
 }
 
 .hero-title {
-  font-size: 3rem;
+  font-size: 4rem;
   font-weight: 800;
   letter-spacing: 0.08em;
   color: var(--color-accent);
@@ -92,7 +92,7 @@ body {
 
 .hero--ready .hero-title,
 .hero--complete .hero-title {
-  font-size: 2rem;
+  font-size: 3rem;
 }
 
 .hero-tagline {

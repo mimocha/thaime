@@ -2,37 +2,52 @@
 
 ***Thai Input Method Engine | THA-IME - ไทยมี***
 
-THAIME is a Latin-to-Thai input method engine. Type Thai using romanized Latin keystrokes on a standard QWERTY keyboard — the engine matches your input against a dictionary of Thai words and presents ranked candidates for selection.
-
-Think of it like Pinyin input for Chinese or Romaji input for Japanese, but for Thai.
+THAIME is a Latin-to-Thai input method engine. Type Thai using romanized Latin keystrokes on a standard QWERTY keyboard — the engine matches your input against a dictionary of Thai words and presents ranked candidates for selection. Think of it like Pinyin input for Chinese or Romaji input for Japanese, but for Thai.
 
 ## How It Works
 
-1. You type Latin characters (e.g., `sawatdee`)
-2. The engine matches input against a trie-based dictionary of romanized Thai words
-3. A ranked list of Thai candidates is presented (e.g., สวัสดี)
-4. You select the correct candidate, which is committed as Thai text
+1. You type Latin characters (e.g., `sawasdee`)
+2. The engine runs prefix search on a trie-based dictionary at every position in the input
+3. A word lattice is built from all possible word spans, then scored using Viterbi DP with n-gram context
+4. Ranked Thai candidates are presented (e.g., สวัสดี)
+5. You select a candidate, which is committed as Thai text and feeds back into the context window
+
+## Web Demo
+
+Try THAIME in your browser: [**Web Demo**](https://mimocha.github.io/thaime/)
+
+The web demo runs the full engine client-side via WebAssembly — no server required.
+
+## Installation
+
+THAIME is under active development. IME framework frontends (IBus, Fcitx5) are planned for Q2–Q3 2026. For now, use the CLI, TUI, or web demo. See the [Installation Guide](docs/installation.md) for details.
 
 ## Project Structure
-
-THAIME is a Rust workspace that produces a shared library (`libthaime_engine.so`) with a C ABI, designed for consumption by input method framework frontends (IBus, Fcitx5, etc.).
 
 ```
 thaime/
 ├── crates/
 │   ├── thaime_engine/     Core library (lib + cdylib + staticlib)
-│   │   ├── lib.rs         Rust API + C ABI exports
+│   │   ├── lib.rs         ThaiMeEngine struct + C ABI exports
 │   │   ├── trie.rs        Double-array trie dictionary (yada)
 │   │   ├── ranking.rs     Viterbi k-best candidate ranking
+│   │   ├── ngram.rs       N-gram language model (Stupid Backoff)
 │   │   ├── context.rs     Input session state machine
+│   │   ├── config.rs      Tunable parameters and constants
 │   │   ├── keymap.rs      Latin → Thai mapping (planned)
 │   │   └── validate.rs    Thai sequence validation (planned)
 │   ├── thaime_cli/        Interactive CLI test harness
-│   └── thaime_dictgen/    Dictionary compiler (JSON → binary trie)
+│   ├── thaime_tui/        Ratatui-based visual debugger
+│   ├── thaime_dictgen/    Dictionary compiler (JSON → binary trie)
+│   └── thaime_wasm/       wasm-bindgen wrapper for browser
+├── web/                   React + TypeScript web demo
 ├── frontends/
 │   └── ibus/              IBus engine frontend (planned)
-├── data/dict/             Compiled dictionary binaries (generated)
-└── scripts/               Build and install utilities
+├── data/
+│   ├── dict/              Compiled dictionary binaries (versioned)
+│   └── input/             Source JSON + n-gram binaries
+├── build.sh               Full build pipeline script
+└── tests/                 Regression test data (TOML)
 ```
 
 Dictionary and n-gram data is generated from the companion [thaime-nlp](https://github.com/mimocha/thaime-nlp) repository, which handles NLP research, corpus processing, and romanization variant generation.
@@ -42,21 +57,17 @@ Dictionary and n-gram data is generated from the companion [thaime-nlp](https://
 Requires the stable Rust toolchain. Install via [rustup](https://rustup.rs/) if needed.
 
 ```bash
-# Generate dictionary (required once, before first build)
-cargo run -p thaime_dictgen -- data/trie_dataset.json
-
-# Build
+# Quick start (dictionary binaries are committed to the repo)
 cargo build --workspace
-
-# Run tests
 cargo test --workspace
 
-# Lint
-cargo fmt --all
-cargo clippy --all-targets --all-features
+# Full pipeline: regenerate dict, build workspace, WASM, and web demo
+./build.sh
 ```
 
-## Running the CLI
+See the [Build Guide](docs/build-guide.md) for prerequisites, feature flags, WASM setup, and CI details.
+
+## CLI
 
 ```bash
 cargo run -p thaime_cli
@@ -65,29 +76,50 @@ cargo run -p thaime_cli
 The CLI is an interactive REPL for testing the engine:
 
 ```
-THAIME CLI v0.1.0
-Type Latin characters to see Thai candidates. Commands: :q quit, :r reset, :b backspace
+THAIME CLI v0.5.0
+Commands: :q quit, :r reset, :b backspace, :cc clear context
 
-> sawatdee
-  1. สวัสดี           (score: 6.31)
+<BOS> > sawatdee
+   #  Thai              Total    Freq   Ngram  SegPen  Words
+   1  สวัสดี              6.81    5.81    0.00    1.00      1
 
-> mai
-  1. ไม่              (score: 4.84)
-  2. ไหม              (score: 5.80)
-  3. ใหม่             (score: 6.02)
-
-> 1
-  -> ไม่
+<BOS> > mai
+   #  Thai              Total    Freq   Ngram  SegPen  Words
+   1  ไม่                5.34    4.34    0.00    1.00      1
+   2  ไหม                6.30    5.30    0.00    1.00      1
+   3  ใหม่               6.52    5.52    0.00    1.00      1
 ```
 
-- Type Latin characters to build input and see candidates
+- Type Latin characters (a-z) to build input and see candidates
 - Enter a number (1-9) to commit that candidate
 - Press Enter to commit the top candidate
-- `:b` backspace, `:r` reset, `:q` quit
+- `:b` backspace, `:r` reset, `:cc` clear context, `:q` quit
+
+## TUI
+
+```bash
+cargo run -p thaime_tui
+```
+
+The TUI is a ratatui-based visual debugger with four modes:
+
+- **Main** — Live candidate exploration with score decomposition and real-time parameter tuning (lambda, ngram_weight, alpha, k, min_freq)
+- **Lattice** — View all word lattice edges for the current input
+- **Inspector** — Trie explorer with optional "why not?" target word diagnosis
+- **Regression** — Run and view regression test results from TOML test files
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Architecture](docs/architecture.md) | High-level architecture, module map, data flow, two-repo design |
+| [Algorithm](docs/algorithm.md) | Engine internals: trie, lattice, Viterbi, n-gram, scoring formulas |
+| [Build Guide](docs/build-guide.md) | Prerequisites, `build.sh`, dict generation, WASM, CI/CD |
+| [Installation](docs/installation.md) | Installation options and planned frontend support |
 
 ## Contributing
 
-Contributions are welcome. Please open an issue to discuss changes before submitting a pull request.
+This is still a solo developer project, but I aim to open the project up for contributions before the end of 2026.
 
 ## License
 

@@ -1,0 +1,235 @@
+# Build Guide
+
+This guide covers everything needed to build THAIME from source, including the dictionary pipeline, WASM target, and web demo.
+
+## Prerequisites
+
+| Tool | Version | Purpose |
+|------|---------|---------|
+| [Rust](https://rustup.rs/) | stable | Core toolchain |
+| [wasm-pack](https://rustwasm.github.io/wasm-pack/) | latest | WASM build (optional) |
+| [Node.js](https://nodejs.org/) | 22+ | Web demo (optional) |
+| [cbindgen](https://github.com/mozilla/cbindgen) | 0.29+ | C header generation (auto via build dep) |
+
+## Quick Start
+
+```bash
+# Build everything (debug)
+cargo build --workspace
+
+# Run tests
+cargo test --workspace
+
+# Run the CLI
+cargo run -p thaime_cli
+
+# Run the TUI
+cargo run -p thaime_tui
+```
+
+This works out of the box if the `data/dict/` directory already contains compiled dictionary binaries (they are committed to the repository).
+
+## Full Build Pipeline
+
+The `build.sh` script runs the complete pipeline: dictionary generation, workspace build, WASM compilation, and web demo setup.
+
+```bash
+./build.sh [path/to/trie_dataset.json]
+```
+
+Default input: `data/input/trie_dataset.json`
+
+### Pipeline Steps
+
+```
+Step 1/6: Build thaime_dictgen (release)
+    └─ cargo build -r -p thaime_dictgen
+
+Step 2/6: Generate dictionary
+    └─ target/release/thaime_dictgen <input.json> data/dict/
+
+Step 3/6: Version dictionary files
+    └─ Renames trie.bin, metadata.bin, thaime.dict
+       to trie-v0_5_0.bin, metadata-v0_5_0.bin, thaime-v0_5_0.dict
+       (version tag derived from workspace Cargo.toml)
+
+Step 4/6: Build workspace (release)
+    └─ cargo build -r --workspace
+       (embeds fresh dictionary via include_bytes!())
+
+Step 5/6: Build WASM package
+    └─ wasm-pack build crates/thaime_wasm --target web
+
+Step 6/6: Copy dict + ngram to web demo
+    └─ Copies thaime-v0_5_0.dict to web/public/dict/
+    └─ Copies highest min_count ngram binary to web/public/dict/
+    └─ Writes web/.env with VITE_DICT_FILE and VITE_NGRAM_FILE
+```
+
+## Dictionary Generation
+
+The dictionary source data (`trie_dataset.json`) is generated from the companion [thaime-nlp](https://github.com/mimocha/thaime-nlp) repository:
+
+```bash
+# In the thaime-nlp repo:
+python -m pipelines trie run
+
+# Copy output to thaime:
+cp pipelines/outputs/trie/trie_dataset.json /path/to/thaime/data/input/
+```
+
+The `thaime_dictgen` crate compiles this JSON into binary files:
+
+```bash
+cargo run -p thaime_dictgen -- data/input/trie_dataset.json data/dict/
+```
+
+This produces three files in `data/dict/`:
+
+| File | Contents |
+|------|----------|
+| `trie.bin` | yada double-array trie (romanization keys → group IDs) |
+| `metadata.bin` | bincode-serialized word metadata + CSR posting lists |
+| `thaime.dict` | Combined blob for WASM (`[4B trie_len][trie][metadata]`) |
+
+The build script (`crates/thaime_engine/build.rs`) discovers these files and sets `THAIME_TRIE_PATH` and `THAIME_METADATA_PATH` environment variables so they are embedded at compile time via `include_bytes!()`. It prefers versioned filenames (e.g., `trie-v0_5_0.bin`) and falls back to unversioned names.
+
+## N-gram Binary
+
+N-gram language model binaries are generated from the [thaime-nlp](https://github.com/mimocha/thaime-nlp) repository:
+
+```bash
+# In the thaime-nlp repo:
+python -m pipelines ngram run
+
+# Copy output to thaime:
+cp pipelines/outputs/ngram/thaime_ngram_v1_mc*.bin /path/to/thaime/data/input/
+```
+
+Multiple variants with different `min_count` thresholds are available (e.g., `mc10`, `mc15`, `mc20`). Higher min_count means fewer but more reliable n-gram entries. The build script and `build.sh` both prefer the highest available min_count variant.
+
+File naming convention: `thaime_ngram_v{format_version}_mc{min_count}.bin`
+
+### Loading Modes
+
+N-gram data can be loaded in several ways:
+
+| Mode | How | When |
+|------|-----|------|
+| Embedded | `embed-ngram` feature flag | Compile-time embedding via `include_bytes!()` |
+| Runtime (binary) | `--ngram-bin <path>` (CLI) | Load pre-built binary at startup |
+| Runtime (TSV) | `--ngram-dir <path>` (CLI) | Load raw TSV count files (dev/debug) |
+| Auto-discover | Default CLI behavior | Scans `data/input/` for binary, falls back to TSV |
+| Hot-load (WASM) | `WasmEngine::load_ngram()` | Fire-and-forget after page load |
+
+## Feature Flags
+
+| Feature | Default | Description |
+|---------|---------|-------------|
+| `embed-dict` | **yes** | Embed dictionary binaries at compile time |
+| `embed-ngram` | no | Embed n-gram binary at compile time |
+
+```bash
+# Build with both features
+cargo build --features embed-ngram
+
+# Build without embedded dictionary (for runtime loading)
+cargo build --no-default-features
+```
+
+## Build Artifacts
+
+| Artifact | Path | Description |
+|----------|------|-------------|
+| Shared library | `target/{debug,release}/libthaime_engine.so` | C ABI library for frontends |
+| Static library | `target/{debug,release}/libthaime_engine.a` | Static linking alternative |
+| C header | `target/thaime.h` | Auto-generated by cbindgen |
+| CLI binary | `target/{debug,release}/thaime_cli` | Interactive REPL |
+| TUI binary | `target/{debug,release}/thaime_tui` | Visual debugger |
+| WASM package | `crates/thaime_wasm/pkg/` | wasm-bindgen JS+WASM bundle |
+
+## WASM Build
+
+Requires `wasm-pack` and the `wasm32-unknown-unknown` target:
+
+```bash
+rustup target add wasm32-unknown-unknown
+cargo install wasm-pack
+
+wasm-pack build crates/thaime_wasm --target web
+```
+
+Output goes to `crates/thaime_wasm/pkg/`, which the web demo's `vite.config.ts` references.
+
+## Web Demo
+
+The web demo is a React + TypeScript application in the `web/` directory:
+
+```bash
+cd web
+npm install
+npm run dev     # Development server
+npm run build   # Production build → web/dist/
+```
+
+The demo needs dictionary and n-gram files in `web/public/dict/`. The `build.sh` pipeline (step 6) handles this, or you can copy them manually:
+
+```bash
+mkdir -p web/public/dict
+cp data/dict/thaime-v0_5_0.dict web/public/dict/
+cp data/input/thaime_ngram_v1_mc20.bin web/public/dict/
+echo 'VITE_DICT_FILE=thaime-v0_5_0.dict' > web/.env
+echo 'VITE_NGRAM_FILE=thaime_ngram_v1_mc20.bin' >> web/.env
+```
+
+## C Header Generation
+
+The C header is auto-generated by cbindgen during `cargo build` via the build script at `crates/thaime_engine/build.rs`. Output: `target/thaime.h`.
+
+To verify exported symbols:
+
+```bash
+nm -D target/debug/libthaime_engine.so | grep thaime_
+```
+
+## CI/CD
+
+Two GitHub Actions workflows are configured:
+
+### CI (`ci.yml`)
+
+Runs on push to `main` and all PRs:
+
+1. License header check (hawkeye)
+2. Format check (`cargo fmt --all -- --check`)
+3. Clippy lint (`cargo clippy --all-targets --all-features -- -D warnings`)
+4. Build (`cargo build --workspace`)
+5. Test (`cargo test --workspace`)
+
+### Deploy Web Demo (`deploy-web.yml`)
+
+Runs on push to `main` (and manual dispatch):
+
+1. Build WASM package
+2. Copy versioned dictionary + n-gram to `web/public/dict/`
+3. Build Vite production bundle
+4. Deploy to GitHub Pages
+
+## Code Quality
+
+```bash
+# Format all code
+cargo fmt --all
+
+# Lint with all features enabled
+cargo clippy --all-targets --all-features
+
+# Run all tests
+cargo test --workspace
+```
+
+### Conventions
+
+- All source files must include `// SPDX-License-Identifier: MPL-2.0`
+- Each module should have `#[cfg(test)] mod tests { ... }`
+- `Cargo.lock` is committed for reproducible builds

@@ -166,7 +166,7 @@ const App: React.FC = () => {
         <section className="sandbox-section">
           <h2 className="sandbox-heading">Try it yourself</h2>
           <p id="ime-instructions" className="sandbox-hint">
-            Type Latin characters to compose Thai text.
+            พิมพ์คาราโอเกะแปลงเป็นไทย
           </p>
 
           <IMEInput
@@ -191,10 +191,10 @@ const App: React.FC = () => {
           <div className="shortcuts-section">
             <p className="shortcuts-title">Keyboard Shortcuts</p>
             <div className="shortcuts-grid">
-              <div className="shortcut"><kbd>a</kbd>–<kbd>z</kbd><span>Type to compose</span></div>
-              <div className="shortcut"><kbd>1</kbd>–<kbd>9</kbd><span>Select candidate</span></div>
-              <div className="shortcut"><kbd>Enter</kbd> / <kbd>Space</kbd><span>Commit top</span></div>
-              <div className="shortcut"><kbd>↑</kbd> <kbd>↓</kbd> / <kbd>Tab</kbd><span>Navigate</span></div>
+              <div className="shortcut"><kbd>a</kbd>-<kbd>z</kbd><span>Type to compose</span></div>
+              <div className="shortcut"><kbd>1</kbd>-<kbd>9</kbd><span>Select candidate</span></div>
+              <div className="shortcut"><kbd>Enter</kbd> / <kbd>Space</kbd><span>Commit word</span></div>
+              <div className="shortcut"><kbd>↑</kbd> <kbd>↓</kbd> / <kbd>Tab</kbd><span>Navigate candidates</span></div>
               <div className="shortcut"><kbd>Backspace</kbd><span>Edit input</span></div>
               <div className="shortcut"><kbd>Escape</kbd><span>Discard input</span></div>
             </div>
@@ -203,9 +203,9 @@ const App: React.FC = () => {
 
         {/* Coming Soon */}
         <section className="coming-soon-section">
-          <h2 className="coming-soon-title">Help improve THAIME</h2>
+          <h2 className="coming-soon-title">Help improve THAIME + Roadmap</h2>
           <p className="coming-soon-text">
-            Crowd-sourced romanization contributions — coming soon.
+            Coming soon.
           </p>
           <a
             className="github-link"
@@ -221,17 +221,10 @@ const App: React.FC = () => {
       {/* ── Footer ── */}
       <footer className={footerClass}>
         <p>
-          THAIME is open source software licensed under MPL-2.0.
-          The engine runs entirely in your browser via WebAssembly.
-        </p>
-        <p>
-          <a
-            href="https://github.com/mimocha/thaime"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            GitHub
-          </a>
+          MPL-2.0 |
+          Powered by Rust + WebAssembly |
+          Made by <a href="https://mimocha.github.io" target="_blank" rel="noopener noreferrer">mimocha</a> |
+          This engine runs entirely in your browser.
         </p>
       </footer>
     </div>
