@@ -92,6 +92,17 @@ impl WasmEngine {
     pub fn preedit(&self) -> String {
         self.inner.preedit().to_string()
     }
+
+    /// Hot-load n-gram data from a binary blob.
+    ///
+    /// Parses the binary and enables context-dependent ranking.
+    /// Can be called after construction to upgrade dict-only mode.
+    pub fn load_ngram(&mut self, ngram_blob: &[u8]) -> Result<(), JsValue> {
+        let ngram = thaime_engine::ngram::NgramData::from_bytes(ngram_blob)
+            .map_err(|e| JsValue::from_str(&format!("ngram parse error: {e}")))?;
+        self.inner.load_ngram(ngram);
+        Ok(())
+    }
 }
 
 /// Lightweight serializable candidate for JS consumption.

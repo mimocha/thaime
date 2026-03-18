@@ -12,6 +12,7 @@ repository.workspace = true
 [features]
 default = ["embed-dict"]
 embed-dict = []
+embed-ngram = []
 
 [lib]
 name = "thaime_engine"

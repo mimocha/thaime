@@ -1541,6 +1541,146 @@ fn print_usage() {
     println!("In-app help: press F1 or ? for keybind reference.");
 }
 
+/// Auto-discover and load the best binary n-gram file from a directory.
+fn tui_load_ngram_binary(dir: &std::path::Path) -> Option<NgramData> {
+    let mut candidates: Vec<PathBuf> = std::fs::read_dir(dir)
+        .ok()?
+        .filter_map(|e| e.ok())
+        .filter(|e| {
+            e.file_name()
+                .to_str()
+                .map(|n| n.starts_with("thaime_ngram_v1_mc") && n.ends_with(".bin"))
+                .unwrap_or(false)
+        })
+        .map(|e| e.path())
+        .collect();
+    candidates.sort();
+    let path = candidates.last()?;
+    let data = std::fs::read(path).ok()?;
+    match NgramData::from_bytes(&data) {
+        Ok(ng) => {
+            eprintln!(
+                "Loaded n-gram binary: {} ({} unigrams, {} bigrams, {} trigrams)",
+                path.display(),
+                ng.unigram_count(),
+                ng.bigram_count(),
+                ng.trigram_count(),
+            );
+            Some(ng)
+        }
+        Err(e) => {
+            eprintln!(
+                "Warning: Failed to parse n-gram binary {}: {}",
+                path.display(),
+                e
+            );
+            None
+        }
+    }
+}
+
+/// Load n-gram data from raw TSV count files (fallback for dev).
+fn tui_load_ngram_tsv(dir: &std::path::Path) -> Option<NgramData> {
+    use std::collections::HashMap;
+    use std::io::BufRead;
+
+    let unigram_path = dir.join("ngrams_1_merged_raw.tsv");
+    let bigram_path = dir.join("ngrams_2_merged_raw.tsv");
+    let trigram_path = dir.join("ngrams_3_merged_raw.tsv");
+
+    if !unigram_path.exists() || !bigram_path.exists() {
+        return None;
+    }
+
+    let load_unigrams = |path: &std::path::Path| -> io::Result<HashMap<String, u64>> {
+        let file = std::fs::File::open(path)?;
+        let reader = io::BufReader::new(file);
+        let mut counts = HashMap::new();
+        for line in reader.lines() {
+            let line = line?;
+            let line = line.trim();
+            if line.is_empty() {
+                continue;
+            }
+            let mut parts = line.split('\t');
+            let word = parts.next().map(|w| w.to_string());
+            let count = parts.next().and_then(|s| s.parse::<u64>().ok());
+            if let (Some(w), Some(c)) = (word, count) {
+                counts.insert(w, c);
+            }
+        }
+        Ok(counts)
+    };
+
+    let load_bigrams = |path: &std::path::Path| -> io::Result<HashMap<(String, String), u64>> {
+        let file = std::fs::File::open(path)?;
+        let reader = io::BufReader::new(file);
+        let mut counts = HashMap::new();
+        for line in reader.lines() {
+            let line = line?;
+            let line = line.trim();
+            if line.is_empty() {
+                continue;
+            }
+            let mut parts = line.split('\t');
+            let w1 = parts.next().map(|w| w.to_string());
+            let w2 = parts.next().map(|w| w.to_string());
+            let count = parts.next().and_then(|s| s.parse::<u64>().ok());
+            if let (Some(a), Some(b), Some(c)) = (w1, w2, count) {
+                counts.insert((a, b), c);
+            }
+        }
+        Ok(counts)
+    };
+
+    let load_trigrams = |path: &std::path::Path,
+                         min_count: u64|
+     -> io::Result<HashMap<(String, String, String), u64>> {
+        let file = std::fs::File::open(path)?;
+        let reader = io::BufReader::new(file);
+        let mut counts = HashMap::new();
+        for line in reader.lines() {
+            let line = line?;
+            let line = line.trim();
+            if line.is_empty() {
+                continue;
+            }
+            let mut parts = line.split('\t');
+            let w1 = parts.next().map(|w| w.to_string());
+            let w2 = parts.next().map(|w| w.to_string());
+            let w3 = parts.next().map(|w| w.to_string());
+            let count = parts.next().and_then(|s| s.parse::<u64>().ok());
+            if let (Some(a), Some(b), Some(c), Some(n)) = (w1, w2, w3, count) {
+                if n >= min_count {
+                    counts.insert((a, b, c), n);
+                }
+            }
+        }
+        Ok(counts)
+    };
+
+    let unigrams = load_unigrams(&unigram_path).ok()?;
+    let bigrams = load_bigrams(&bigram_path).ok()?;
+    let trigrams = if trigram_path.exists() {
+        load_trigrams(
+            &trigram_path,
+            thaime_engine::config::DEFAULT_TRIGRAM_MIN_COUNT,
+        )
+        .unwrap_or_default()
+    } else {
+        HashMap::new()
+    };
+
+    let ng = NgramData::from_raw(unigrams, bigrams, trigrams);
+    eprintln!(
+        "Loaded n-gram TSV: {} unigrams, {} bigrams, {} trigrams",
+        ng.unigram_count(),
+        ng.bigram_count(),
+        ng.trigram_count(),
+    );
+    Some(ng)
+}
+
 fn main() -> io::Result<()> {
     let args: Vec<String> = env::args().collect();
     let mut test_file: Option<PathBuf> = None;
@@ -1583,7 +1723,7 @@ fn main() -> io::Result<()> {
         .or_else(|| env::var("THAIME_NGRAM_DIR").ok().map(PathBuf::from))
         .or_else(|| {
             let conventional = PathBuf::from("data/input");
-            if conventional.join("ngrams_1_merged_raw.tsv").exists() {
+            if conventional.is_dir() {
                 Some(conventional)
             } else {
                 None
@@ -1591,39 +1731,8 @@ fn main() -> io::Result<()> {
         });
 
     let ngram = if let Some(ref dir) = ngram_dir {
-        let unigram_path = dir.join("ngrams_1_merged_raw.tsv");
-        let bigram_path = dir.join("ngrams_2_merged_raw.tsv");
-        let trigram_path = dir.join("ngrams_3_merged_raw.tsv");
-        let trigram_arg = if trigram_path.exists() {
-            Some(trigram_path.as_path())
-        } else {
-            None
-        };
-        match NgramData::from_tsv_files(
-            &unigram_path,
-            &bigram_path,
-            trigram_arg,
-            thaime_engine::config::DEFAULT_TRIGRAM_MIN_COUNT,
-            None,
-        ) {
-            Ok(data) => {
-                eprintln!(
-                    "Loaded n-gram data: {} unigrams, {} bigrams, {} trigrams",
-                    data.unigram_count(),
-                    data.bigram_count(),
-                    data.trigram_count(),
-                );
-                Some(data)
-            }
-            Err(e) => {
-                eprintln!(
-                    "Warning: Failed to load n-gram data from {}: {}",
-                    dir.display(),
-                    e
-                );
-                None
-            }
-        }
+        // Try binary first, then TSV
+        tui_load_ngram_binary(dir).or_else(|| tui_load_ngram_tsv(dir))
     } else {
         None
     };

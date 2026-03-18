@@ -47,6 +47,15 @@ jobs:
           cp "data/dict/${DICT_FILE}" "web/public/dict/${DICT_FILE}"
           echo "VITE_DICT_FILE=${DICT_FILE}" > web/.env
 
+      - name: Copy n-gram binary
+        run: |
+          NGRAM_FILE=$(ls data/input/thaime_ngram_v1_mc*.bin 2>/dev/null | sort | tail -1)
+          if [ -n "$NGRAM_FILE" ]; then
+            NGRAM_BASENAME=$(basename "$NGRAM_FILE")
+            cp "$NGRAM_FILE" "web/public/dict/${NGRAM_BASENAME}"
+            echo "VITE_NGRAM_FILE=${NGRAM_BASENAME}" >> web/.env
+          fi
+
       - name: Install npm dependencies
         working-directory: web
         run: npm install

@@ -61,11 +61,12 @@ cargo build -r --workspace
 echo "--- [5/6] Building WASM package ---"
 wasm-pack build crates/thaime_wasm --target web
 
-# --- Step 6: Copy dict to web demo ---
-echo "--- [6/6] Copying dict to web demo ---"
+# --- Step 6: Copy dict + ngram to web demo ---
+echo "--- [6/6] Copying dict + ngram to web demo ---"
 
 # Remove old versioned files (avoid stale versions accumulating)
 rm -f web/public/dict/thaime-v*.dict
+rm -f web/public/dict/thaime_ngram_v*.bin
 
 DICT_FILE="thaime-${VTAG}.dict"
 mkdir -p web/public/dict
@@ -73,6 +74,17 @@ cp "$DICT_DIR/$DICT_FILE" "web/public/dict/$DICT_FILE"
 
 # Write .env for Vite to pick up the versioned filename
 echo "VITE_DICT_FILE=$DICT_FILE" > web/.env
+
+# Copy ngram binary if available (highest min_count variant)
+NGRAM_FILE=$(ls data/input/thaime_ngram_v1_mc*.bin 2>/dev/null | sort | tail -1)
+if [ -n "$NGRAM_FILE" ]; then
+    NGRAM_BASENAME=$(basename "$NGRAM_FILE")
+    cp "$NGRAM_FILE" "web/public/dict/$NGRAM_BASENAME"
+    echo "VITE_NGRAM_FILE=$NGRAM_BASENAME" >> web/.env
+    echo "  Ngram: web/public/dict/$NGRAM_BASENAME"
+else
+    echo "  (no ngram binary found in data/input/ — skipping)"
+fi
 
 echo ""
 echo "=== Build complete ==="

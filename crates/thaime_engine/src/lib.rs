@@ -31,12 +31,22 @@ pub struct ThaiMeEngine {
 impl ThaiMeEngine {
     /// Create a new engine with the embedded dictionary.
     ///
-    /// Panics if the embedded dictionary data is corrupt.
+    /// If the `embed-ngram` feature is also enabled, loads the embedded
+    /// n-gram data for context-dependent ranking.
+    ///
+    /// Panics if the embedded data is corrupt.
     #[cfg(feature = "embed-dict")]
     pub fn new() -> Self {
         let dict = Dictionary::from_embedded();
+        #[cfg(feature = "embed-ngram")]
+        let context = {
+            let ngram = NgramData::from_embedded();
+            InputContext::with_ngram(dict, ngram)
+        };
+        #[cfg(not(feature = "embed-ngram"))]
+        let context = InputContext::new(dict);
         Self {
-            context: Some(InputContext::new(dict)),
+            context: Some(context),
         }
     }
 
@@ -59,6 +69,33 @@ impl ThaiMeEngine {
         let dict = Dictionary::from_bytes(trie_bytes, metadata_bytes);
         Self {
             context: Some(InputContext::with_ngram(dict, ngram)),
+        }
+    }
+
+    /// Create a new engine from dictionary bytes and a raw n-gram binary blob.
+    ///
+    /// Parses the n-gram binary at construction time. Returns an error
+    /// string if the ngram binary is malformed.
+    pub fn from_dict_bytes_with_ngram_binary(
+        trie_bytes: Vec<u8>,
+        metadata_bytes: &[u8],
+        ngram_bytes: &[u8],
+    ) -> Result<Self, String> {
+        let dict = Dictionary::from_bytes(trie_bytes, metadata_bytes);
+        let ngram =
+            NgramData::from_bytes(ngram_bytes).map_err(|e| format!("ngram parse error: {e}"))?;
+        Ok(Self {
+            context: Some(InputContext::with_ngram(dict, ngram)),
+        })
+    }
+
+    /// Hot-load n-gram data after engine construction.
+    ///
+    /// Replaces any previously loaded n-gram data and re-ranks candidates
+    /// if the buffer is non-empty.
+    pub fn load_ngram(&mut self, ngram: NgramData) {
+        if let Some(ctx) = &mut self.context {
+            ctx.load_ngram(ngram);
         }
     }
 

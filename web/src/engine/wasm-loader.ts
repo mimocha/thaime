@@ -62,6 +62,12 @@ export function loadEngine(
     }
 
     engineInstance = new WasmEngine(dictBytes);
+
+    // Fire-and-forget: fetch n-gram data in the background
+    fetchNgram(engineInstance).catch((err) => {
+      console.warn('N-gram loading failed (dict-only mode):', err);
+    });
+
     return engineInstance;
   })();
 
@@ -71,4 +77,20 @@ export function loadEngine(
   });
 
   return initPromise;
+}
+
+/**
+ * Fetch and load the n-gram binary in the background.
+ * Does not block engine availability — the UI works dict-only until this completes.
+ */
+async function fetchNgram(engine: WasmEngine): Promise<void> {
+  const base = import.meta.env.BASE_URL ?? '/';
+  const ngramFile = import.meta.env.VITE_NGRAM_FILE ?? 'thaime_ngram_v1_mc20.bin';
+  const resp = await fetch(`${base}dict/${ngramFile}`);
+  if (!resp.ok) {
+    throw new Error(`Failed to fetch ngram: ${resp.status} ${resp.statusText}`);
+  }
+  const bytes = new Uint8Array(await resp.arrayBuffer());
+  engine.load_ngram(bytes);
+  console.log(`N-gram loaded: ${ngramFile} (${bytes.length} bytes)`);
 }

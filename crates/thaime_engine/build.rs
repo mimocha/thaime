@@ -16,7 +16,10 @@ fn main() {
     // --- Dictionary path discovery ---
     // Resolve versioned dict files (e.g. trie-v0_4_2.bin) with fallback to
     // unversioned names (trie.bin) for dev builds.
-    let workspace_root = PathBuf::from(&crate_dir).join("../..").canonicalize().unwrap();
+    let workspace_root = PathBuf::from(&crate_dir)
+        .join("../..")
+        .canonicalize()
+        .unwrap();
     let dict_dir = workspace_root.join("data/dict");
 
     let vtag = read_version_tag(&workspace_root);
@@ -32,6 +35,27 @@ fn main() {
 
     // Re-run when dict files change
     println!("cargo:rerun-if-changed={}", dict_dir.display());
+
+    // --- N-gram binary discovery ---
+    let input_dir = workspace_root.join("data/input");
+    if let Ok(entries) = std::fs::read_dir(&input_dir) {
+        let mut candidates: Vec<PathBuf> = entries
+            .filter_map(|e| e.ok())
+            .filter(|e| {
+                e.file_name()
+                    .to_str()
+                    .map(|n| n.starts_with("thaime_ngram_v1_mc") && n.ends_with(".bin"))
+                    .unwrap_or(false)
+            })
+            .map(|e| e.path())
+            .collect();
+        candidates.sort();
+        // Prefer highest min_count variant (last alphabetically)
+        if let Some(path) = candidates.last() {
+            println!("cargo:rustc-env=THAIME_NGRAM_PATH={}", path.display());
+        }
+    }
+    println!("cargo:rerun-if-changed={}", input_dir.display());
 }
 
 /// Read the workspace version from the root Cargo.toml and convert to a
@@ -56,12 +80,7 @@ fn read_version_tag(workspace_root: &std::path::Path) -> String {
 }
 
 /// Find the dict file, preferring versioned name over unversioned fallback.
-fn resolve_dict_path(
-    dict_dir: &std::path::Path,
-    stem: &str,
-    vtag: &str,
-    ext: &str,
-) -> PathBuf {
+fn resolve_dict_path(dict_dir: &std::path::Path, stem: &str, vtag: &str, ext: &str) -> PathBuf {
     // Try versioned first: e.g. trie-v0_4_2.bin
     let versioned = dict_dir.join(format!("{}-{}.{}", stem, vtag, ext));
     if versioned.exists() {

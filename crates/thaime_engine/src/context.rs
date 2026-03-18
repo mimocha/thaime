@@ -139,6 +139,17 @@ impl InputContext {
         &self.committed_context
     }
 
+    /// Hot-load n-gram data after construction.
+    ///
+    /// Replaces any previously loaded n-gram data and re-ranks candidates
+    /// if the buffer is non-empty.
+    pub fn load_ngram(&mut self, ngram: NgramData) {
+        self.ngram = Some(ngram);
+        if !self.buffer.is_empty() {
+            self.refresh_candidates();
+        }
+    }
+
     /// Get the current Latin input buffer (for preedit display).
     pub fn preedit(&self) -> &str {
         &self.buffer

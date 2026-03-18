@@ -35,7 +35,7 @@ thaime/
 └── scripts/               Build and install utilities
 ```
 
-Dictionary data is generated from the companion [thaime-candidate](https://github.com/mimocha/thaime-candidate) repository, which handles NLP research, corpus processing, and romanization variant generation.
+Dictionary and n-gram data is generated from the companion [thaime-nlp](https://github.com/mimocha/thaime-nlp) repository, which handles NLP research, corpus processing, and romanization variant generation.
 
 ## Building
 
