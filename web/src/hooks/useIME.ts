@@ -21,6 +21,7 @@ export interface IMEState {
 
 export interface UseIMEReturn extends IMEState {
   handleKeyDown: (e: React.KeyboardEvent) => void;
+  handleMobileInput: (e: React.FormEvent<HTMLInputElement>) => void;
   commitCandidate: (index: number) => void;
   clearCommitted: () => void;
   pushKeyProgrammatic: (ch: string) => void;
@@ -112,6 +113,38 @@ export function useIME(): UseIMEReturn {
     refreshState();
   }, [refreshState]);
 
+  const handleCharInput = useCallback((ch: string) => {
+    const engine = engineRef.current;
+    if (!engine || status === 'loading' || status === 'error') return;
+
+    if (inputMode === 'kedmanee') {
+      if (ch === ' ') setCommittedText((prev) => prev + ' ');
+      else {
+        const result = engine.processKey(ch);
+        if (result != null && result.length > 0) setCommittedText((prev) => prev + result);
+      }
+      return;
+    }
+    if (inputMode === 'latin') {
+      setCommittedText((prev) => prev + ch);
+      return;
+    }
+    // Romanization
+    if (/^[a-zA-Z]$/.test(ch)) { engine.pushKey(ch.toLowerCase()); refreshState(); return; }
+    if (status === 'composing' && /^[1-9]$/.test(ch)) {
+      const idx = parseInt(ch, 10) - 1;
+      if (idx < candidates.length) commitCandidate(idx);
+      return;
+    }
+    if (status !== 'composing') setCommittedText((prev) => prev + ch);
+  }, [status, candidates, inputMode, refreshState, commitCandidate]);
+
+  const handleMobileInput = useCallback((e: React.FormEvent<HTMLInputElement>) => {
+    const data = (e.nativeEvent as InputEvent).data;
+    if (data) handleCharInput(data);
+    (e.target as HTMLInputElement).value = '';
+  }, [handleCharInput]);
+
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     const engine = engineRef.current;
     if (!engine || status === 'loading' || status === 'error') return;
@@ -140,14 +173,7 @@ export function useIME(): UseIMEReturn {
       }
       if (key.length === 1) {
         e.preventDefault();
-        if (key === ' ') {
-          setCommittedText((prev) => prev + ' ');
-        } else {
-          const result = engine.processKey(key);
-          if (result != null && result.length > 0) {
-            setCommittedText((prev) => prev + result);
-          }
-        }
+        handleCharInput(key);
         return;
       }
       return;
@@ -166,7 +192,7 @@ export function useIME(): UseIMEReturn {
       }
       if (key.length === 1) {
         e.preventDefault();
-        setCommittedText((prev) => prev + key);
+        handleCharInput(key);
         return;
       }
       return;
@@ -178,18 +204,14 @@ export function useIME(): UseIMEReturn {
     // Latin character input (a-z, A-Z)
     if (key.length === 1 && /^[a-zA-Z]$/.test(key)) {
       e.preventDefault();
-      engine.pushKey(key.toLowerCase());
-      refreshState();
+      handleCharInput(key);
       return;
     }
 
     // Number keys 1-9: select candidate while composing
     if (isComposing && key.length === 1 && /^[1-9]$/.test(key)) {
       e.preventDefault();
-      const idx = parseInt(key, 10) - 1;
-      if (idx < candidates.length) {
-        commitCandidate(idx);
-      }
+      handleCharInput(key);
       return;
     }
 
@@ -256,7 +278,7 @@ export function useIME(): UseIMEReturn {
     // Pass-through: punctuation, numbers, space when idle
     if (!isComposing && key.length === 1) {
       e.preventDefault();
-      setCommittedText((prev) => prev + key);
+      handleCharInput(key);
       return;
     }
 
@@ -271,7 +293,7 @@ export function useIME(): UseIMEReturn {
       });
       return;
     }
-  }, [status, candidates, selectedIndex, inputMode, refreshState, commitCandidate, switchMode]);
+  }, [status, candidates, selectedIndex, inputMode, refreshState, commitCandidate, switchMode, handleCharInput]);
 
   const clearCommitted = useCallback(() => {
     setCommittedText('');
@@ -286,6 +308,7 @@ export function useIME(): UseIMEReturn {
     error,
     loadProgress,
     handleKeyDown,
+    handleMobileInput,
     commitCandidate,
     clearCommitted,
     pushKeyProgrammatic,

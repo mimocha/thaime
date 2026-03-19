@@ -184,6 +184,7 @@ const App: React.FC = () => {
             selectedIndex={ime.selectedIndex}
             committedText={ime.committedText}
             onKeyDown={ime.handleKeyDown}
+            onMobileInput={ime.handleMobileInput}
             onCommitCandidate={ime.commitCandidate}
             inputMode={ime.inputMode}
             onSwitchMode={ime.switchMode}

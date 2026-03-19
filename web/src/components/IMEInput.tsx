@@ -17,6 +17,7 @@ interface IMEInputProps {
   selectedIndex: number;
   committedText: string;
   onKeyDown: (e: React.KeyboardEvent) => void;
+  onMobileInput: (e: React.FormEvent<HTMLInputElement>) => void;
   onCommitCandidate: (index: number) => void;
   inputMode: InputMode;
   onSwitchMode: (mode: InputMode) => void;
@@ -38,11 +39,12 @@ export const IMEInput: React.FC<IMEInputProps> = ({
   selectedIndex,
   committedText,
   onKeyDown,
+  onMobileInput,
   onCommitCandidate,
   inputMode,
   onSwitchMode,
 }) => {
-  const inputRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const isComposing = status === 'composing';
   const showCandidates = isComposing && inputMode === 'romanization';
 
@@ -71,13 +73,35 @@ export const IMEInput: React.FC<IMEInputProps> = ({
         <span className="mode-shortcut-hint">Ctrl+Space</span>
       </div>
 
-      <div
+      <input
         ref={inputRef}
+        type="text"
+        inputMode="text"
+        autoComplete="off"
+        autoCorrect="off"
+        autoCapitalize="none"
+        spellCheck={false}
+        onKeyDown={onKeyDown}
+        onInput={onMobileInput}
+        style={{
+          position: 'absolute',
+          width: '1px',
+          height: '1px',
+          opacity: 0,
+          top: 0,
+          left: 0,
+          border: 'none',
+          padding: 0,
+          margin: 0,
+          pointerEvents: 'none',
+        }}
+      />
+
+      <div
         className="ime-input"
-        tabIndex={0}
         role="textbox"
         aria-label="Thai input area"
-        onKeyDown={onKeyDown}
+        onClick={() => inputRef.current?.focus()}
       >
         <span className="committed-text">{committedText}</span>
         {inputMode === 'romanization' && (
