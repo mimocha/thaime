@@ -2,7 +2,7 @@
 // IME state machine hook — manages preedit composition and candidate selection.
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { ThaiEngine, Candidate, createEngine } from '../engine/engine-bridge';
+import { ThaiEngine, Candidate, InputMode, createEngine } from '../engine/engine-bridge';
 
 export type IMEStatus = 'loading' | 'idle' | 'composing' | 'error';
 
@@ -22,6 +22,8 @@ export interface UseIMEReturn extends IMEState {
   clearCommitted: () => void;
   pushKeyProgrammatic: (ch: string) => void;
   commitTop: () => void;
+  inputMode: InputMode;
+  switchMode: (mode: InputMode) => void;
 }
 
 const MAX_CANDIDATES_SHOWN = 9;
@@ -35,6 +37,7 @@ export function useIME(): UseIMEReturn {
   const [committedText, setCommittedText] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loadProgress, setLoadProgress] = useState(0);
+  const [inputMode, setInputMode] = useState<InputMode>('romanization');
 
   // Initialize engine on mount
   useEffect(() => {
@@ -98,11 +101,75 @@ export function useIME(): UseIMEReturn {
     commitCandidate(0);
   }, [commitCandidate]);
 
+  const switchMode = useCallback((mode: InputMode) => {
+    const engine = engineRef.current;
+    if (!engine) return;
+    engine.setMode(mode);
+    setInputMode(mode);
+    refreshState();
+  }, [refreshState]);
+
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     const engine = engineRef.current;
     if (!engine || status === 'loading' || status === 'error') return;
 
     const key = e.key;
+
+    // Ctrl+Space: cycle input modes
+    if (key === ' ' && e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey) {
+      e.preventDefault();
+      const modes: InputMode[] = ['romanization', 'kedmanee', 'latin'];
+      const nextIdx = (modes.indexOf(inputMode) + 1) % modes.length;
+      switchMode(modes[nextIdx]);
+      return;
+    }
+
+    // ── Kedmanee mode: direct key→Thai mapping ──────────────────
+    if (inputMode === 'kedmanee') {
+      if (key === 'Backspace') {
+        e.preventDefault();
+        setCommittedText((prev) => {
+          const arr = [...prev];
+          arr.pop();
+          return arr.join('');
+        });
+        return;
+      }
+      if (key.length === 1) {
+        e.preventDefault();
+        if (key === ' ') {
+          setCommittedText((prev) => prev + ' ');
+        } else {
+          const result = engine.processKey(key);
+          if (result != null && result.length > 0) {
+            setCommittedText((prev) => prev + result);
+          }
+        }
+        return;
+      }
+      return;
+    }
+
+    // ── Latin mode: pass-through ────────────────────────────────
+    if (inputMode === 'latin') {
+      if (key === 'Backspace') {
+        e.preventDefault();
+        setCommittedText((prev) => {
+          const arr = [...prev];
+          arr.pop();
+          return arr.join('');
+        });
+        return;
+      }
+      if (key.length === 1) {
+        e.preventDefault();
+        setCommittedText((prev) => prev + key);
+        return;
+      }
+      return;
+    }
+
+    // ── Romanization mode (existing behavior) ───────────────────
     const isComposing = status === 'composing';
 
     // Latin character input (a-z, A-Z)
@@ -201,7 +268,7 @@ export function useIME(): UseIMEReturn {
       });
       return;
     }
-  }, [status, candidates, selectedIndex, refreshState, commitCandidate]);
+  }, [status, candidates, selectedIndex, inputMode, refreshState, commitCandidate, switchMode]);
 
   const clearCommitted = useCallback(() => {
     setCommittedText('');
@@ -220,5 +287,7 @@ export function useIME(): UseIMEReturn {
     clearCommitted,
     pushKeyProgrammatic,
     commitTop,
+    inputMode,
+    switchMode,
   };
 }

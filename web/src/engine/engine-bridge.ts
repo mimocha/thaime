@@ -9,6 +9,8 @@ export interface Candidate {
   score: number;
 }
 
+export type InputMode = 'romanization' | 'kedmanee' | 'latin';
+
 export interface ThaiEngine {
   pushKey(ch: string): boolean;
   popKey(): boolean;
@@ -16,6 +18,11 @@ export interface ThaiEngine {
   commit(index: number): string | null;
   reset(): void;
   preedit(): string;
+  mode(): InputMode;
+  setMode(mode: InputMode): void;
+  /** Process a key with mode-aware behavior.
+   *  Returns null if rejected, "" if consumed (romanization), or the committed char. */
+  processKey(ch: string): string | null;
 }
 
 class EngineBridge implements ThaiEngine {
@@ -46,6 +53,19 @@ class EngineBridge implements ThaiEngine {
 
   preedit(): string {
     return this.wasm.preedit();
+  }
+
+  mode(): InputMode {
+    return this.wasm.mode() as InputMode;
+  }
+
+  setMode(mode: InputMode): void {
+    this.wasm.set_mode(mode);
+  }
+
+  processKey(ch: string): string | null {
+    if (ch.length !== 1) return null;
+    return this.wasm.process_key(ch) ?? null;
   }
 }
 

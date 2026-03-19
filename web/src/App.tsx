@@ -182,6 +182,8 @@ const App: React.FC = () => {
             committedText={ime.committedText}
             onKeyDown={ime.handleKeyDown}
             onCommitCandidate={ime.commitCandidate}
+            inputMode={ime.inputMode}
+            onSwitchMode={ime.switchMode}
           />
 
           {ime.committedText && (
@@ -196,12 +198,30 @@ const App: React.FC = () => {
           <div className="shortcuts-section">
             <p className="shortcuts-title">Keyboard Shortcuts</p>
             <div className="shortcuts-grid">
-              <div className="shortcut"><kbd>a</kbd>-<kbd>z</kbd><span>Type to compose</span></div>
-              <div className="shortcut"><kbd>1</kbd>-<kbd>9</kbd><span>Select candidate</span></div>
-              <div className="shortcut"><kbd>Enter</kbd> / <kbd>Space</kbd><span>Commit word</span></div>
-              <div className="shortcut"><kbd>↑</kbd> <kbd>↓</kbd> / <kbd>Tab</kbd><span>Navigate candidates</span></div>
-              <div className="shortcut"><kbd>Backspace</kbd><span>Edit input</span></div>
-              <div className="shortcut"><kbd>Escape</kbd><span>Discard input</span></div>
+              <div className="shortcut"><kbd>Ctrl</kbd>+<kbd>Space</kbd><span>Cycle input mode</span></div>
+              {ime.inputMode === 'romanization' && (
+                <>
+                  <div className="shortcut"><kbd>a</kbd>-<kbd>z</kbd><span>Type to compose</span></div>
+                  <div className="shortcut"><kbd>1</kbd>-<kbd>9</kbd><span>Select candidate</span></div>
+                  <div className="shortcut"><kbd>Enter</kbd> / <kbd>Space</kbd><span>Commit word</span></div>
+                  <div className="shortcut"><kbd>↑</kbd> <kbd>↓</kbd> / <kbd>Tab</kbd><span>Navigate candidates</span></div>
+                  <div className="shortcut"><kbd>Backspace</kbd><span>Edit input</span></div>
+                  <div className="shortcut"><kbd>Escape</kbd><span>Discard input</span></div>
+                </>
+              )}
+              {ime.inputMode === 'kedmanee' && (
+                <>
+                  <div className="shortcut"><kbd>a</kbd>-<kbd>z</kbd><span>Type Thai characters</span></div>
+                  <div className="shortcut"><kbd>Shift</kbd>+key<span>Upper Thai layer</span></div>
+                  <div className="shortcut"><kbd>Backspace</kbd><span>Delete character</span></div>
+                </>
+              )}
+              {ime.inputMode === 'latin' && (
+                <>
+                  <div className="shortcut"><kbd>a</kbd>-<kbd>z</kbd><span>Type Latin characters</span></div>
+                  <div className="shortcut"><kbd>Backspace</kbd><span>Delete character</span></div>
+                </>
+              )}
             </div>
           </div>
         </section>

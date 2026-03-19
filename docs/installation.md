@@ -1,6 +1,6 @@
 # Installation Guide
 
-THAIME is under active development. Native IME frontend integration (IBus, Fcitx5) is planned for Q2–Q3 2026.
+THAIME is still under active development; user installation is currently not supported.
 
 ## Current Options
 

@@ -5,7 +5,7 @@
 //! Thin wrapper over `thaime_engine` exposing a JS-callable API via
 //! `wasm-bindgen`. The engine runs entirely client-side in the browser.
 
-use thaime_engine::ThaiMeEngine;
+use thaime_engine::{InputMode, KeyResult, ThaiMeEngine};
 use wasm_bindgen::prelude::*;
 
 /// WASM-exposed engine handle.
@@ -102,6 +102,45 @@ impl WasmEngine {
             .map_err(|e| JsValue::from_str(&format!("ngram parse error: {e}")))?;
         self.inner.load_ngram(ngram);
         Ok(())
+    }
+
+    /// Get the current input mode.
+    ///
+    /// Returns `"romanization"`, `"kedmanee"`, or `"latin"`.
+    pub fn mode(&self) -> String {
+        match self.inner.mode() {
+            InputMode::Romanization => "romanization".into(),
+            InputMode::Kedmanee => "kedmanee".into(),
+            InputMode::Latin => "latin".into(),
+        }
+    }
+
+    /// Set the input mode. Resets any active composition when the mode changes.
+    ///
+    /// Accepts `"romanization"`, `"kedmanee"`, or `"latin"`.
+    pub fn set_mode(&mut self, mode: &str) -> Result<(), JsValue> {
+        let m = match mode {
+            "romanization" => InputMode::Romanization,
+            "kedmanee" => InputMode::Kedmanee,
+            "latin" => InputMode::Latin,
+            _ => return Err(JsValue::from_str(&format!("unknown mode: {mode}"))),
+        };
+        self.inner.set_mode(m);
+        Ok(())
+    }
+
+    /// Process a key with mode-aware behavior.
+    ///
+    /// Returns:
+    /// - `null` — key rejected (not handled)
+    /// - `""` (empty string) — key consumed into composition buffer (Romanization)
+    /// - `"ฟ"` (non-empty string) — committed character (Kedmanee/Latin)
+    pub fn process_key(&mut self, ch: char) -> Option<String> {
+        match self.inner.process_key(ch) {
+            KeyResult::Rejected => None,
+            KeyResult::Consumed => Some(String::new()),
+            KeyResult::Committed(c) => Some(c.to_string()),
+        }
     }
 }
 
