@@ -31,30 +31,16 @@ jobs:
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
-      - name: Build WASM package
-        run: wasm-pack build crates/thaime_wasm --target web
+      - name: Fetch NLP data
+        run: ./scripts/fetch-data.sh
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
 
-      - name: Copy versioned dictionary blob
-        run: |
-          VTAG="v$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/' | tr '.' '_')"
-          DICT_FILE="thaime-${VTAG}.dict"
-          mkdir -p web/public/dict
-          cp "data/dict/${DICT_FILE}" "web/public/dict/${DICT_FILE}"
-          echo "VITE_DICT_FILE=${DICT_FILE}" > web/.env
-
-      - name: Copy n-gram binary
-        run: |
-          NGRAM_FILE=$(ls data/input/thaime_ngram_v1_mc*.bin 2>/dev/null | sort | tail -1)
-          if [ -n "$NGRAM_FILE" ]; then
-            NGRAM_BASENAME=$(basename "$NGRAM_FILE")
-            cp "$NGRAM_FILE" "web/public/dict/${NGRAM_BASENAME}"
-            echo "VITE_NGRAM_FILE=${NGRAM_BASENAME}" >> web/.env
-          fi
+      - name: Prepare web demo assets
+        run: ./scripts/build-web.sh
 
       - name: Install npm dependencies
         working-directory: web

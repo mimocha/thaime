@@ -9,22 +9,32 @@ This directory contains compiled data files used by the engine at runtime.
 - `input/` - N-gram binary files (`.bin`). Pre-scored language model data generated
   by the [`thaime-nlp`](https://github.com/mimocha/thaime-nlp) pipeline.
 
-## Generation
+## Fetching Data
 
-Data is generated from within the [thaime-nlp](https://github.com/mimocha/thaime-nlp)
-repository. Run the following commands **in that repo**:
+Run the fetch script from the workspace root to download, verify, and compile
+all required data files:
 
 ```bash
-# Full trie pipeline
-python -m pipelines trie run
-
-# Full n-gram pipeline
-python -m pipelines ngram run
+./scripts/fetch-data.sh
 ```
 
-Output binaries can be found under: `pipelines/outputs/ngram/thaime_ngram_*.bin`
+This reads `thaime-data.toml` for the pinned NLP release version and checksums,
+downloads artifacts from the `thaime-nlp` GitHub Release, and compiles trie
+binaries via `thaime_dictgen`.
 
-Copy the desired files into the appropriate subdirectory here (`dict/` or `input/`).
+**Requirements:** `gh` (GitHub CLI), `gunzip`, `sha256sum`, Rust toolchain.
+
+### Using local data
+
+If you have the artifacts locally (e.g. from the `thaime-nlp` repo), set
+`THAIME_DATA_DIR` to skip the download:
+
+```bash
+THAIME_DATA_DIR=/path/to/local/artifacts ./scripts/fetch-data.sh
+```
+
+The directory must contain the uncompressed files (`trie_dataset.json`,
+`thaime_ngram_v1_mc15.bin`, etc.).
 
 ## Formats
 

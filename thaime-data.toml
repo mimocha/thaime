@@ -1,0 +1,11 @@
+# NLP data version — from thaime-nlp GitHub Releases
+# The specific release version is pinned here.
+# When updating, make sure to update the version and the checksums of the artifacts.
+[nlp-data]
+repo = "mimocha/thaime-nlp"
+version = "v1.0.0"
+
+# Engine-required artifacts and their checksums (of .gz files)
+[nlp-data.artifacts]
+trie_dataset = { file = "trie_dataset.json.gz", sha256 = "176c6be9f794175723c1a31e9f80360ccaada0716d5727f3b9748b77ea92f436" }
+ngram = { file = "thaime_ngram_v1_mc15.bin.gz", sha256 = "e5c23aa725dc9239183a01ae0489b210c39c65451d442437901a506b25dd7aa5" }
