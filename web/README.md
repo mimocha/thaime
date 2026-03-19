@@ -1,6 +1,6 @@
 # THAIME Web Demo
 
-Browser-based demo of the THAIME Latin-to-Thai input method engine. The real Rust engine runs client-side via WebAssembly — no server required.
+Browser-based demo of the THAIME Latin-to-Thai input method engine. The real Rust engine runs client-side via WebAssembly - no server required.
 
 ## Quick Start
 
@@ -63,7 +63,7 @@ web/
 
 1. **WASM module** (`thaime_wasm`) wraps the Rust `thaime_engine` crate via `wasm-bindgen`
 2. **Dictionary blob** (`thaime.dict`) is fetched at page load and passed to the WASM engine constructor
-3. **`useIME` hook** manages the IME state machine — translates keyboard events into engine API calls (`push_key`, `pop_key`, `commit`, `reset`)
+3. **`useIME` hook** manages the IME state machine - translates keyboard events into engine API calls (`push_key`, `pop_key`, `commit`, `reset`)
 4. **Components** render the preedit buffer, candidate dropdown, and committed Thai text
 
 The engine runs entirely in the browser. No data is sent to any server.
@@ -87,7 +87,7 @@ Automated via GitHub Actions (`.github/workflows/deploy-web.yml`). On push to `m
 3. `npm install` + `npm run build`
 4. Deploy `web/dist/` to GitHub Pages
 
-The entire site is static files — HTML, JS, CSS, WASM binary, and dictionary blob.
+The entire site is static files - HTML, JS, CSS, WASM binary, and dictionary blob.
 
 ## License
 

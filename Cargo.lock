@@ -768,14 +768,14 @@ dependencies = [
 
 [[package]]
 name = "thaime_cli"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "thaime_engine",
 ]
 
 [[package]]
 name = "thaime_dictgen"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "bincode",
  "serde",
@@ -785,7 +785,7 @@ dependencies = [
 
 [[package]]
 name = "thaime_engine"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "bincode",
  "cbindgen",
@@ -795,7 +795,7 @@ dependencies = [
 
 [[package]]
 name = "thaime_tui"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "ratatui",
  "serde",
@@ -805,7 +805,7 @@ dependencies = [
 
 [[package]]
 name = "thaime_wasm"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "serde",
  "serde-wasm-bindgen",

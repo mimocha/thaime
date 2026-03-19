@@ -4,7 +4,7 @@ This document describes the high-level architecture of THAIME: how the component
 
 ## Overview
 
-THAIME is a **Latin-to-Thai input method engine**. It lets users type Thai on a standard QWERTY keyboard using romanized keystrokes — similar to Pinyin input for Chinese or Romaji input for Japanese.
+THAIME is a **Latin-to-Thai input method engine**. It lets users type Thai on a standard QWERTY keyboard using romanized keystrokes - similar to Pinyin input for Chinese or Romaji input for Japanese.
 
 The core problem: given a Latin keystroke sequence like `sawatdee`, find the best Thai interpretation (`สวัสดี`). This requires a dictionary lookup, word segmentation (since Thai has no spaces), and a language model to disambiguate candidates.
 
@@ -15,28 +15,28 @@ Keystroke (Latin char)
     │
     ▼
 ┌──────────────────┐
-│  Input Context   │  context.rs — accumulates keystrokes, manages state
+│  Input Context   │  context.rs - accumulates keystrokes, manages state
 │  (buffer: "mai") │
 └────────┬─────────┘
          │  on every keystroke: re-run full ranking pipeline
          ▼
 ┌──────────────────┐
-│  Trie Lookup     │  trie.rs — prefix search on double-array trie
+│  Trie Lookup     │  trie.rs - prefix search on double-array trie
 │   "mai" → [ไม่,   │  returns all romanization prefixes that match
 │    ไหม, ใหม่, มา] │
 └────────┬─────────┘
          │  prefix matches at every position → lattice edges
          ▼
 ┌──────────────────┐
-│  Word Lattice    │  ranking.rs — DAG of all possible word spans
+│  Word Lattice    │  ranking.rs - DAG of all possible word spans
 │  (edges by end   │  each edge: [start, end) → thai, freq, cost
 │   position)      │
 └────────┬─────────┘
          │  Viterbi forward pass with k-best tracking
          ▼
 ┌──────────────────┐
-│  Viterbi DP      │  ranking.rs — scores paths through the lattice
-│  + N-gram LM     │  ngram.rs — Stupid Backoff trigram scoring
+│  Viterbi DP      │  ranking.rs - scores paths through the lattice
+│  + N-gram LM     │  ngram.rs - Stupid Backoff trigram scoring
 └────────┬─────────┘
          │  deduplicate, sort by cost
          ▼
@@ -49,7 +49,7 @@ Keystroke (Latin char)
          │  user selects candidate
          ▼
 ┌──────────────────┐
-│   Commit          │  context.rs — commits Thai text, updates context
+│   Commit          │  context.rs - commits Thai text, updates context
 │   context: [ไม่]  │  last 2 words retained for trigram window
 └──────────────────┘
 ```
@@ -118,7 +118,7 @@ thaime_engine/src/
 ├── context.rs      InputContext state machine
 │                       │
 │                       ▼ calls on every keystroke
-├── ranking.rs      rank_candidates() — lattice + Viterbi DP
+├── ranking.rs      rank_candidates() - lattice + Viterbi DP
 │                       │
 │                       ├─ reads ──► trie.rs (prefix search)
 │                       └─ reads ──► ngram.rs (trigram scoring)
@@ -134,9 +134,9 @@ thaime_engine/src/
 
 - **`context.rs`** → `ranking.rs`, `trie.rs`, `ngram.rs`, `config.rs`
 - **`ranking.rs`** → `trie.rs`, `ngram.rs`, `config.rs`
-- **`trie.rs`** — standalone (depends on `yada`, `bincode`, `serde`)
+- **`trie.rs`** - standalone (depends on `yada`, `bincode`, `serde`)
 - **`ngram.rs`** → `config.rs`
-- **`config.rs`** — standalone (constants only)
+- **`config.rs`** - standalone (constants only)
 
 ## C ABI Design
 
@@ -144,14 +144,14 @@ The engine exposes a C-compatible API for consumption by input method frameworks
 
 ### Why C ABI?
 
-- C ABI is the universal FFI boundary — every language can call it
+- C ABI is the universal FFI boundary - every language can call it
 - IBus and Fcitx5 both support C/C++ engine modules
 - Decouples the Rust internals from the framework-specific glue code
 - Allows the engine to be consumed from Python, Go, etc. for testing
 
 ### Opaque Pointer Pattern
 
-The C API uses an opaque struct pointer. Callers never see the struct layout — they get a `ThaiMeEngine*` and call functions on it:
+The C API uses an opaque struct pointer. Callers never see the struct layout - they get a `ThaiMeEngine*` and call functions on it:
 
 ```c
 // Lifecycle
@@ -204,7 +204,7 @@ This is produced by `thaime_dictgen` and allows a single HTTP fetch at page load
 
 ### Fire-and-Forget N-gram Loading
 
-The web demo loads the dictionary first (blocking — required for any functionality), then loads the n-gram binary asynchronously. The engine works in unigram-only mode until n-gram data arrives, then hot-loads it via `WasmEngine::load_ngram()` and re-ranks if there's active input.
+The web demo loads the dictionary first (blocking - required for any functionality), then loads the n-gram binary asynchronously. The engine works in unigram-only mode until n-gram data arrives, then hot-loads it via `WasmEngine::load_ngram()` and re-ranks if there's active input.
 
 ## Dictionary Pipeline
 
@@ -255,6 +255,6 @@ thaime_ngram_v1_mc*.bin ────────►  data/input/thaime_ngram_v1_
                               include_bytes!()               WASM: load_ngram()
 ```
 
-The v1 binary format stores pre-scored log₁₀ probabilities for unigrams, bigrams, and trigrams with sorted ID arrays for binary search lookup. See [Algorithm — N-gram Language Model](algorithm.md#n-gram-language-model) for scoring details.
+The v1 binary format stores pre-scored log₁₀ probabilities for unigrams, bigrams, and trigrams with sorted ID arrays for binary search lookup. See [Algorithm - N-gram Language Model](algorithm.md#n-gram-language-model) for scoring details.
 
 Multiple variants with different `min_count` thresholds are available. Higher min_count means smaller file size with fewer but more reliable n-gram entries. The build tooling automatically selects the highest available min_count.

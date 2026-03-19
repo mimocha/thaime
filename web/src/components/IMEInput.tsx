@@ -42,7 +42,6 @@ export const IMEInput: React.FC<IMEInputProps> = ({
         tabIndex={0}
         role="textbox"
         aria-label="Thai input area"
-        aria-describedby="ime-instructions"
         onKeyDown={onKeyDown}
       >
         <span className="committed-text">{committedText}</span>

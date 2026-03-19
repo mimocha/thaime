@@ -1,13 +1,26 @@
 // SPDX-License-Identifier: MPL-2.0
 // Info popover — explains what THAIME is.
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 export const InfoPopover: React.FC = () => {
   const [open, setOpen] = useState(false);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
 
   return (
-    <div className="info-popover-container">
+    <div className="info-popover-container" ref={popoverRef}>
       <button
         className="info-button"
         onClick={() => setOpen((v) => !v)}
@@ -19,26 +32,17 @@ export const InfoPopover: React.FC = () => {
 
       {open && (
         <div className="info-popover" role="dialog" aria-label="About THAIME">
-          <h3>What is THAIME?</h3>
+          <p className="info-tagline">pim thai mai dai?</p>
           <p>
-            THAIME is a Latin-to-Thai input method engine. Type Thai words using
-            familiar Latin characters (romanization), and THAIME converts them
-            to Thai script in real time.
+            <strong>THAIME</strong> <em>(Thai Input Method Editor)</em> lets you type phonetically in Latin and convert into Thai script.
           </p>
-          <h4>How to use</h4>
-          <ul>
-            <li><strong>Type</strong> Latin characters (a–z) to compose</li>
-            <li><strong>1–9</strong> to select a numbered candidate</li>
-            <li><strong>Enter</strong> or <strong>Space</strong> to commit the top candidate</li>
-            <li><strong>↑/↓</strong> or <strong>Tab</strong> to navigate candidates</li>
-            <li><strong>Backspace</strong> to edit the input buffer</li>
-            <li><strong>Escape</strong> to discard the current input</li>
-          </ul>
-          <p className="info-footer">
-            THAIME is open source (MPL-2.0). The engine runs entirely in your
-            browser via WebAssembly — no data is sent to any server.
+          <p className="info-thai">
+            สำหรับคนไม่ชอบใช้<a href='https://www.keychron.co.th/blogs/article/kedmanee-pattachote'>แป้นพิมพ์ไทยเกษมณี</a>
+            THAIME เป็นซอฟต์แวร์ที่ช่วยให้คุณสามารถพิมพ์ภาษาไทยแบบคาราโอเกะแล้วแปลงเป็นตัวหนังสือไทยได้
           </p>
-          <button className="info-close" onClick={() => setOpen(false)}>Close</button>
+          <p>
+            <span className="info-example">"sawasdee"</span> → <span className="info-example-thai">"สวัสดี"</span>
+          </p>
         </div>
       )}
     </div>

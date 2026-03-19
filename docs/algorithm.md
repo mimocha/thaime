@@ -10,9 +10,9 @@ This document explains the internals of the THAIME engine: how it turns Latin ke
 
 THAIME uses a [double-array trie](https://en.wikipedia.org/wiki/Double-array_trie) (via the [yada](https://crates.io/crates/yada) crate) for dictionary lookup. This data structure is chosen for:
 
-- **Fast prefix search** — `O(key_length)` per lookup, critical since we search at every position in the input
-- **Compact representation** — the double-array encoding is more memory-efficient than a naive trie
-- **Common prefix search** — yada's `common_prefix_search` returns all keys that are prefixes of the input in a single pass
+- **Fast prefix search** - `O(key_length)` per lookup, critical since we search at every position in the input
+- **Compact representation** - the double-array encoding is more memory-efficient than a naive trie
+- **Common prefix search** - yada's `common_prefix_search` returns all keys that are prefixes of the input in a single pass
 
 ### Data Model
 
@@ -80,7 +80,7 @@ The engine runs `prefix_search` at every byte position in the input (0 through n
 
 ### From Prefix Matches to DAG
 
-The prefix matches from all positions form a directed acyclic graph (DAG) — the **word lattice**. Each edge represents one possible word spanning `[start, end)` in the input.
+The prefix matches from all positions form a directed acyclic graph (DAG) - the **word lattice**. Each edge represents one possible word spanning `[start, end)` in the input.
 
 **Example:** Input `"mainai"` (6 bytes)
 
@@ -101,11 +101,11 @@ Position: 0    1    2    3    4    5    6
 
 Edges are grouped by their **end position** for efficient Viterbi processing. Each edge carries:
 
-- `start`, `end` — byte positions in the input
-- `thai` — the Thai text for this word
-- `word_id` — dictionary word ID (for n-gram lookup)
-- `frequency` — raw word frequency from the dictionary
-- `cost` — `-ln(max(freq, MIN_FREQ)) + LAMBDA`
+- `start`, `end` - byte positions in the input
+- `thai` - the Thai text for this word
+- `word_id` - dictionary word ID (for n-gram lookup)
+- `frequency` - raw word frequency from the dictionary
+- `cost` - `-ln(max(freq, MIN_FREQ)) + LAMBDA`
 
 ### What Makes a Valid Path?
 
@@ -113,7 +113,7 @@ A **valid path** (complete tiling) must cover the entire input with no gaps and 
 
 | Path | Words | Valid? |
 |------|-------|--------|
-| `มา` (0→2) + `ใน` (3→6) | 2 | No — gap at position 2→3 |
+| `มา` (0→2) + `ใน` (3→6) | 2 | No - gap at position 2→3 |
 | `ไม่` (0→3) + `ใน` (3→6) | 2 | Yes |
 | `ไหม` (0→3) + `ใน` (3→6) | 2 | Yes |
 | `ใหม่` (0→3) + `ใน` (3→6) | 2 | Yes |
@@ -146,8 +146,8 @@ Lower cost = better candidate.
 | Term | What it does |
 |------|-------------|
 | `-ln(freq)` | Frequent words get lower cost (better) |
-| `LAMBDA` | Segmentation penalty per word — penalizes many short words |
-| `ngram_bonus` | Context bonus — rewards sequences that match the language model |
+| `LAMBDA` | Segmentation penalty per word - penalizes many short words |
+| `ngram_bonus` | Context bonus - rewards sequences that match the language model |
 | `MIN_FREQ` | Floor to avoid `-ln(0)` for rare words |
 
 When n-gram data is not loaded, `ngram_bonus` is 0 and scoring reduces to unigram-only.
@@ -212,7 +212,7 @@ best[8] = { (None, "สวัสดี"): [PartialPath { cost: 6.81 }] }
 Result: [Candidate { thai: "สวัสดี", score: 6.81, words: 1 }]
 ```
 
-**Input:** `"mainai"` — a multi-word example.
+**Input:** `"mainai"` - a multi-word example.
 
 ```
 best[0] = { (None, None): [cost: 0.0] }
@@ -233,9 +233,9 @@ end=6: edge ใน (3→6, freq=0.012)
     From (None,"ใหม่") at pos 3: cost = 6.52 + 5.42 = 11.94
 
 Results (sorted by cost):
-    1. ไม่ใน   (10.76) — 2 words
-    2. ไหมใน   (11.72) — 2 words
-    3. ใหม่ใน  (11.94) — 2 words
+    1. ไม่ใน   (10.76) - 2 words
+    2. ไหมใน   (11.72) - 2 words
+    3. ใหม่ใน  (11.94) - 2 words
 ```
 
 Note: "มา" at position 2 has no edges from 2→6, so it cannot form a complete path.
@@ -248,7 +248,7 @@ Note: "มา" at position 2 has no edges from 2→6, so it cannot form a comple
 
 THAIME uses **Stupid Backoff** (Brants et al., 2007) for n-gram scoring. This is a simple, effective method chosen over more sophisticated approaches like Kneser-Ney for several reasons:
 
-- No normalization required — scores are not true probabilities, which is fine for ranking
+- No normalization required - scores are not true probabilities, which is fine for ranking
 - Simple to implement and debug
 - Works well with large corpora (which is what thaime-nlp produces)
 - Pre-scored probabilities can be stored and loaded efficiently
@@ -369,15 +369,15 @@ Each word in a path pays the lambda penalty once. A 3-word path pays `3×LAMBDA`
 ```
 ngram_weight = 0.0:  Pure unigram ranking (frequency only)
 ngram_weight = 2.0:  (default) moderate context sensitivity
-ngram_weight = 5.0:  Strong context dependence — may over-fit to common sequences
+ngram_weight = 5.0:  Strong context dependence - may over-fit to common sequences
 ```
 
 ### How Alpha Affects Results
 
 ```
-alpha = 0.1:  Harsh backoff — strongly prefers n-gram hits
+alpha = 0.1:  Harsh backoff - strongly prefers n-gram hits
 alpha = 0.4:  (default) moderate backoff
-alpha = 0.9:  Gentle backoff — n-gram misses are barely penalized
+alpha = 0.9:  Gentle backoff - n-gram misses are barely penalized
 ```
 
 ### Input Context Parameters
@@ -424,7 +424,7 @@ The input context manages the lifecycle of a single input session:
 
 ### Key Behaviors
 
-1. **Every keystroke re-ranks**: On `push_key()` or `pop_key()`, the full ranking pipeline runs from scratch on the current buffer contents. This is simple and correct — incremental updates can be added later if profiling shows a need.
+1. **Every keystroke re-ranks**: On `push_key()` or `pop_key()`, the full ranking pipeline runs from scratch on the current buffer contents. This is simple and correct - incremental updates can be added later if profiling shows a need.
 
 2. **Buffer length limit**: `MAX_BUFFER_LEN` (50 bytes) prevents unbounded lattice construction. Characters are rejected once the limit is reached.
 

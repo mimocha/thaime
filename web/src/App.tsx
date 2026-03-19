@@ -3,13 +3,16 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { IMEInput } from './components/IMEInput';
+import { InfoPopover } from './components/InfoPopover';
 import { useIME } from './hooks/useIME';
 import './styles/app.css';
+
+declare const __THAIME_VERSION__: string;
 
 type DemoPhase = 'loading' | 'ready' | 'complete';
 
 const TAGLINE_LATIN = 'pim thai mai dai?';
-const TAGLINE_THAI = 'พิมพ์ไทยได้แล้ว :)';
+const TAGLINE_THAI = 'พิมพ์คาราโอเกะแปลงเป็นไทย';
 const DEMO_KEYS = 'malongchaithaime';
 const TYPING_SPEED_MS = 60;
 const DEMO_KEY_SPEED_MS = 80;
@@ -50,6 +53,7 @@ const App: React.FC = () => {
     isThai: false,
   });
   const [showCursor, setShowCursor] = useState(true);
+  const [taglineFading, setTaglineFading] = useState(false);
   const demoRanRef = useRef(false);
   const mountTimeRef = useRef(Date.now());
 
@@ -94,11 +98,16 @@ const App: React.FC = () => {
     let i = 0;
     const typeNext = () => {
       if (i >= DEMO_KEYS.length) {
-        // After typing completes, swap tagline after a pause
+        // After typing completes, fade out tagline then swap
         setTimeout(() => {
           setShowCursor(false);
-          setTagline({ text: TAGLINE_THAI, isThai: true });
-          setPhase('complete');
+          setTaglineFading(true);
+          // After fade-out completes, swap text and fade back in
+          setTimeout(() => {
+            setTagline({ text: TAGLINE_THAI, isThai: true });
+            setTaglineFading(false);
+            setPhase('complete');
+          }, 400);
         }, TAGLINE_SWAP_DELAY_MS);
         return;
       }
@@ -121,7 +130,7 @@ const App: React.FC = () => {
     return (
       <div className="app">
         <section className="hero hero--loading">
-          <h1 className="hero-title">THAIME</h1>
+          <h1 className="hero-title">THA<span className="hero-title-split">I</span><span className="hero-title-me">ME</span></h1>
           <div className="error-state">
             <p>Failed to load the THAIME engine.</p>
             <p className="error-detail">{ime.error}</p>
@@ -140,8 +149,8 @@ const App: React.FC = () => {
     <div className="app">
       {/* ── Hero ── */}
       <section className={heroClass}>
-        <h1 className="hero-title">THAIME</h1>
-        <p className="hero-tagline">
+        <h1 className="hero-title">THA<span className="hero-title-split">I</span><span className="hero-title-me">ME</span></h1>
+        <p className={`hero-tagline${taglineFading ? ' hero-tagline--fading' : ''}`}>
           <span className={tagline.isThai ? 'hero-tagline-thai' : ''}>
             {tagline.text}
           </span>
@@ -164,11 +173,7 @@ const App: React.FC = () => {
       <main className={mainClass}>
         {/* Sandbox */}
         <section className="sandbox-section">
-          <h2 className="sandbox-heading">Try it yourself</h2>
-          <p id="ime-instructions" className="sandbox-hint">
-            พิมพ์คาราโอเกะแปลงเป็นไทย
-          </p>
-
+          <h2 className="sandbox-heading">Try it yourself <InfoPopover /></h2>
           <IMEInput
             status={ime.status}
             preedit={ime.preedit}
@@ -201,9 +206,58 @@ const App: React.FC = () => {
           </div>
         </section>
 
-        {/* Coming Soon */}
+        {/* Roadmap */}
+        <section className="roadmap-section">
+          <h2 className="roadmap-title">Roadmap</h2>
+
+          <div className="roadmap-timeline">
+            <div className="roadmap-item roadmap-item--active">
+              <div className="roadmap-label">Now</div>
+              <div className="roadmap-dot" />
+              <div className="roadmap-content">
+                <p>Pre-alpha development</p>
+              </div>
+            </div>
+
+            <div className="roadmap-item">
+              <div className="roadmap-label">Q3 2026</div>
+              <div className="roadmap-dot" />
+              <div className="roadmap-content">
+                <p>Linux community package alpha</p>
+                <ul>
+                  <li>Fedora via COPR</li>
+                  <li>Ubuntu via Launchpad PPA</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="roadmap-item">
+              <div className="roadmap-label">Q4 2026</div>
+              <div className="roadmap-dot" />
+              <div className="roadmap-content">
+                <p>Wider Linux beta</p>
+                <ul>
+                  <li>Fedora / RHEL via dnf</li>
+                  <li>Ubuntu / Debian via apt</li>
+                  <li>Arch via AUR</li>
+                  <li>Other major distros</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="roadmap-item">
+              <div className="roadmap-label">2027+</div>
+              <div className="roadmap-dot" />
+              <div className="roadmap-content">
+                <p>Windows / macOS public release</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Help Improve */}
         <section className="coming-soon-section">
-          <h2 className="coming-soon-title">Help improve THAIME + Roadmap</h2>
+          <h2 className="coming-soon-title">Help improve THAIME</h2>
           <p className="coming-soon-text">
             Coming soon.
           </p>
@@ -221,6 +275,7 @@ const App: React.FC = () => {
       {/* ── Footer ── */}
       <footer className={footerClass}>
         <p>
+          v{__THAIME_VERSION__} |
           MPL-2.0 |
           Powered by Rust + WebAssembly |
           Made by <a href="https://mimocha.github.io" target="_blank" rel="noopener noreferrer">mimocha</a> |
