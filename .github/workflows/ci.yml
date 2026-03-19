@@ -42,8 +42,7 @@ jobs:
         run: ./scripts/fetch-data.sh
 
       - name: Run clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
-        note: Requires thaime-nlp data for thaime_dictgen
+        run: cargo clippy --all-targets --all-features -- -D warnings]
 
       - name: Build
         run: cargo build --workspace
