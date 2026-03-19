@@ -213,7 +213,7 @@ body {
   color: var(--color-text);
   margin-bottom: 0.5rem;
   display: grid;
-  grid-template-columns: auto max-content;
+  grid-template-columns: max-content max-content;
   align-items: center;
   gap: 0.5rem;
 }
@@ -252,9 +252,9 @@ body {
 .info-popover {
   position: absolute;
   top: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%);
-  width: 320px;
+  left: 0;
+  transform: translateX(-25%);
+  width: min(320px, calc(100vw - 3rem));
   padding: 1.25rem;
   background: var(--color-surface);
   border: 1.5px solid var(--color-border);
@@ -370,7 +370,7 @@ body {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
-.ime-input:focus {
+.ime-input-wrapper:focus-within .ime-input {
   border-color: var(--color-border-focus);
   box-shadow: 0 0 0 3px rgba(212, 160, 23, 0.12);
 }
@@ -409,7 +409,7 @@ body {
   50% { opacity: 0; }
 }
 
-.ime-input:not(:focus) .cursor {
+.ime-input-wrapper:not(:focus-within) .ime-input .cursor {
   display: none;
 }
 

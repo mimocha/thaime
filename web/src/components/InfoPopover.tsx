@@ -40,11 +40,11 @@ export const InfoPopover: React.FC = () => {
             <strong>THAIME</strong> <em>(Thai Input Method Editor)</em> lets you type phonetically in Latin and convert into Thai script.
           </p>
           <p className="info-thai">
-            สำหรับคนไม่ชอบใช้<a href='https://www.keychron.co.th/blogs/article/kedmanee-pattachote'>แป้นพิมพ์ไทยเกษมณี</a>
-            THAIME เป็นซอฟต์แวร์ที่ช่วยให้คุณสามารถพิมพ์ภาษาไทยแบบคาราโอเกะแล้วแปลงเป็นตัวหนังสือไทยได้
+            สำหรับคนไม่ชอบใช้ <a href='https://www.keychron.co.th/blogs/article/kedmanee-pattachote'>แป้นพิมพ์ไทยเกษมณี </a>
+            THAIME คือซอฟต์แวร์สำหรับพิมพ์แบบคาราโอเกะแล้วแปลงเป็นตัวหนังสือไทย
           </p>
           <p>
-            <span className="info-example">"sawasdee"</span> → <span className="info-example-thai">"สวัสดี"</span>
+            <span className="info-example">"sawasdeekrub"</span> → <span className="info-example-thai">"สวัสดีครับ"</span>
           </p>
         </div>
       )}
