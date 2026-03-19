@@ -31,13 +31,15 @@ jobs:
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
-      - name: Fetch NLP data
-        run: ./scripts/fetch-data.sh
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+
+      - name: Fetch thaime-nlp data
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./scripts/fetch-data.sh
 
       - name: Prepare web demo assets
         run: ./scripts/build-web.sh
