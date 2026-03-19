@@ -1,4 +1,7 @@
-// SPDX-License-Identifier: MPL-2.0
+/*
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 // Async loader: initializes the WASM module and fetches the dictionary blob.
 // Supports progress tracking for the dictionary download.
 

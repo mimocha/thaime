@@ -36,13 +36,14 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all -- --check
 
-      - name: Run clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
-
       - name: Fetch thaime-nlp data
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: ./scripts/fetch-data.sh
+
+      - name: Run clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+        note: Requires thaime-nlp data for thaime_dictgen
 
       - name: Build
         run: cargo build --workspace

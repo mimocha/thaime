@@ -1,4 +1,7 @@
-// SPDX-License-Identifier: MPL-2.0
+/*
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 // Info popover — explains what THAIME is.
 
 import React, { useState, useEffect, useRef } from 'react';

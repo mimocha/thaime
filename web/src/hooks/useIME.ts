@@ -1,4 +1,7 @@
-// SPDX-License-Identifier: MPL-2.0
+/*
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 // IME state machine hook — manages preedit composition and candidate selection.
 
 import { useState, useCallback, useRef, useEffect } from 'react';

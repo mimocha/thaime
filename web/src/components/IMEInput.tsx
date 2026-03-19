@@ -1,4 +1,7 @@
-// SPDX-License-Identifier: MPL-2.0
+/*
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 // Core IME text input area — handles keyboard events and renders composition state.
 
 import React, { useRef, useEffect } from 'react';

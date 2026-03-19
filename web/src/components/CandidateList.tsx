@@ -1,4 +1,7 @@
-// SPDX-License-Identifier: MPL-2.0
+/*
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 // Candidate dropdown list — positioned near the preedit text.
 
 import React from 'react';

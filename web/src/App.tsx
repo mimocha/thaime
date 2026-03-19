@@ -1,4 +1,7 @@
-// SPDX-License-Identifier: MPL-2.0
+/*
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 // Root layout: hero animation → sandbox → coming soon → footer
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';

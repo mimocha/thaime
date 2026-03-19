@@ -1,4 +1,7 @@
-// SPDX-License-Identifier: MPL-2.0
+/*
+ * SPDX-License-Identifier: MPL-2.0
+ */
+
 // Typed TypeScript interface wrapping the raw WASM engine calls.
 
 import { WasmEngine } from 'thaime_wasm';
