@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: MPL-2.0
+
+# SPDX-License-Identifier: MPL-2.0
 #
 # Fetch NLP data artifacts from thaime-nlp GitHub Releases,
 # verify checksums, decompress, and compile trie binaries.

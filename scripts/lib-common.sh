@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: MPL-2.0
+
+# SPDX-License-Identifier: MPL-2.0
 #
 # Shared helpers for thaime build scripts.
 # Source this file — do not execute directly.
