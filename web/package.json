@@ -1,0 +1,24 @@
+{
+  "name": "thaime-web",
+  "private": true,
+  "version": "0.4.2",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "prebuild": "mkdir -p public/dict && cp ../data/dict/thaime-v*.dict public/dict/"
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "thaime_wasm": "file:../crates/thaime_wasm/pkg"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "typescript": "~5.7.0",
+    "vite": "^6.2.0"
+  }
+}

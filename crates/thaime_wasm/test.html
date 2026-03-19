@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: MPL-2.0 -->
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>THAIME WASM Test</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 600px; margin: 2rem auto; padding: 0 1rem; }
+    h1 { font-size: 1.5rem; }
+    #status { color: #666; margin-bottom: 1rem; }
+    #input { font-size: 1.2rem; padding: 0.5rem; width: 100%; box-sizing: border-box; }
+    #preedit { color: #0066cc; font-size: 1.1rem; margin: 0.5rem 0; min-height: 1.5em; }
+    #candidates { list-style: none; padding: 0; margin: 0.5rem 0; }
+    #candidates li { padding: 0.3rem 0.5rem; cursor: pointer; border-radius: 4px; }
+    #candidates li:hover { background: #e8e8e8; }
+    #candidates li .score { color: #999; font-size: 0.85em; margin-left: 0.5rem; }
+    #output { font-size: 1.3rem; min-height: 2em; padding: 0.5rem; background: #f9f9f9; border: 1px solid #ddd; border-radius: 4px; margin-top: 1rem; }
+    .hint { color: #999; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+  <h1>THAIME WASM Test</h1>
+  <div id="status">Loading engine...</div>
+
+  <div>
+    <label for="input">Type Latin text:</label>
+    <input id="input" type="text" autocomplete="off" disabled />
+  </div>
+
+  <div>
+    <strong>Preedit:</strong>
+    <span id="preedit"></span>
+  </div>
+
+  <div>
+    <strong>Candidates:</strong>
+    <ol id="candidates"></ol>
+  </div>
+
+  <div>
+    <strong>Committed Thai:</strong>
+    <div id="output"></div>
+  </div>
+
+  <p class="hint">
+    Type Latin characters to compose. Press a number key (1-9) to commit a
+    candidate. Backspace to delete. Escape to reset.
+  </p>
+
+  <script type="module">
+    import init, { WasmEngine } from './pkg/thaime_wasm.js';
+
+    const statusEl = document.getElementById('status');
+    const inputEl = document.getElementById('input');
+    const preeditEl = document.getElementById('preedit');
+    const candidatesEl = document.getElementById('candidates');
+    const outputEl = document.getElementById('output');
+
+    let engine = null;
+    let committedText = '';
+
+    async function setup() {
+      try {
+        // Initialize the WASM module
+        await init();
+
+        // Fetch the combined dictionary blob
+        statusEl.textContent = 'Fetching dictionary...';
+        const resp = await fetch('./dict/thaime.dict');
+        if (!resp.ok) throw new Error(`Failed to fetch dictionary: ${resp.status}`);
+        const blob = new Uint8Array(await resp.arrayBuffer());
+
+        // Create the engine
+        statusEl.textContent = 'Initializing engine...';
+        engine = new WasmEngine(blob);
+
+        statusEl.textContent = `Engine ready! Dictionary: ${(blob.length / 1048576).toFixed(1)} MB`;
+        inputEl.disabled = false;
+        inputEl.focus();
+      } catch (e) {
+        statusEl.textContent = `Error: ${e.message || e}`;
+        console.error(e);
+      }
+    }
+
+    function updateUI() {
+      const preedit = engine.preedit();
+      preeditEl.textContent = preedit || '(empty)';
+
+      const candidates = engine.candidates();
+      candidatesEl.innerHTML = '';
+      if (candidates && candidates.length > 0) {
+        candidates.forEach((c, i) => {
+          if (i >= 9) return; // Show at most 9
+          const li = document.createElement('li');
+          li.innerHTML = `<strong>${i + 1}.</strong> ${c.thai} <span class="score">(${c.score.toFixed(2)})</span>`;
+          li.addEventListener('click', () => commitCandidate(i));
+          candidatesEl.appendChild(li);
+        });
+      }
+
+      outputEl.textContent = committedText || '(nothing committed yet)';
+    }
+
+    function commitCandidate(index) {
+      const result = engine.commit(index);
+      if (result != null) {
+        committedText += result;
+      }
+      inputEl.value = '';
+      updateUI();
+    }
+
+    inputEl.addEventListener('keydown', (e) => {
+      if (!engine) return;
+
+      const preedit = engine.preedit();
+
+      // Number keys 1-9 while composing → commit candidate
+      if (preedit.length > 0 && e.key >= '1' && e.key <= '9') {
+        e.preventDefault();
+        const idx = parseInt(e.key, 10) - 1;
+        commitCandidate(idx);
+        return;
+      }
+
+      // Enter while composing → commit first candidate
+      if (preedit.length > 0 && e.key === 'Enter') {
+        e.preventDefault();
+        commitCandidate(0);
+        return;
+      }
+
+      // Escape → reset
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        engine.reset();
+        inputEl.value = '';
+        updateUI();
+        return;
+      }
+
+      // Backspace
+      if (e.key === 'Backspace') {
+        e.preventDefault();
+        engine.pop_key();
+        inputEl.value = engine.preedit();
+        updateUI();
+        return;
+      }
+
+      // Latin character
+      if (e.key.length === 1 && /[a-zA-Z]/.test(e.key)) {
+        e.preventDefault();
+        engine.push_key(e.key);
+        inputEl.value = engine.preedit();
+        updateUI();
+        return;
+      }
+    });
+
+    setup();
+  </script>
+</body>
+</html>

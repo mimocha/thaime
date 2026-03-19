@@ -1,0 +1,81 @@
+
+[[test]]
+input = "judpaiwoi"
+expected_thai = "จัดไปโว้ย"
+
+[[test]]
+input = "paikinkaoteenaikunkrub"
+expected_thai = "ไปกินข้าวที่ไหนกันครับ"
+
+[[test]]
+input = "jergunnaka"
+expected_thai = "เจอกันนะคะ"
+
+[[test]]
+input = "jingjung"
+expected_thai = "จริงจัง"
+
+[[test]]
+input = "sawasdeekrubkunkroo"
+expected_thai = "สวัสดีครับคุณครู"
+note = ""
+
+[[test]]
+input = "kuenrodklabban"
+expected_thai = "ขึ้นรถกลับบ้าน"
+
+[[test]]
+input = "kinkaokabarai"
+expected_thai = "กินข้าวกับอะไร"
+
+[[test]]
+input = "pimthaimaidai"
+expected_thai = "พิมพ์ไทยไม่ได้"
+
+[[test]]
+input = "pimthaidailaewnaka"
+expected_thai = "พิมพ์ไทยได้แล้วนะคะ"
+
+[[test]]
+input = "jergunprungneenaka"
+expected_thai = "เจอกันพรุ่งนี้นะคะ"
+
+[[test]]
+input = "ngernduean"
+expected_thai = "เงินเดือน"
+
+[[test]]
+input = "peemaineeyakkeunngernduean"
+expected_thai = "ปีใหม่นี้อยากขึ้นเงินเดือน"
+
+[[test]]
+input = "peekrubpomhiwkao"
+expected_thai = "พี่ครับผมหิวข้าว"
+
+[[test]]
+input = "teeneeteenaitummaimeudjung"
+expected_thai = "ที่นี่ที่ไหนทำไมมืดจัง"
+
+[[test]]
+input = "teryungkidteungchanrueplao"
+expected_thai = "เธอยังคิดถึงฉันหรือเปล่า"
+
+[[test]]
+input = "sawasdee"
+expected_thai = "สวัสดี"
+
+[[test]]
+input = "sawatdee"
+expected_thai = "สวัสดี"
+
+[[test]]
+input = "sawaddee"
+expected_thai = "สวัสดี"
+
+[[test]]
+input = "thaime"
+expected_thai = "ไทยมี"
+
+[[test]]
+input = "malongchaithaime"
+expected_thai = "มาลองใช้ไทยมี"

@@ -1,0 +1,102 @@
+<!--
+
+    SPDX-License-Identifier: MPL-2.0
+
+-->
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>THAIME - ไทยมี</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🇹🇭</text></svg>" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600;700;800&family=Noto+Sans+Thai+Looped:wght@400;600;700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div id="root">
+      <!-- Static shell — visible instantly while JS bundle loads -->
+      <div class="app" id="loading-shell">
+        <section class="hero hero--loading">
+          <h1 class="hero-title">THAIME</h1>
+          <p class="hero-tagline">
+            <span></span>
+            <span class="hero-tagline-cursor"></span>
+          </p>
+          <div class="progress-container">
+            <div class="progress-bar">
+              <div class="progress-fill" style="width: 0%"></div>
+            </div>
+            <p class="progress-label">Loading engine… 0%</p>
+          </div>
+        </section>
+      </div>
+    </div>
+    <style>
+      /* Inline critical styles so the shell renders before CSS bundle loads */
+      #loading-shell {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
+      #loading-shell .hero {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        min-height: 100vh;
+        padding: 2rem 1.5rem;
+      }
+      #loading-shell .hero-title {
+        font-size: 3rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        color: #b8860b;
+        margin-bottom: 0.5rem;
+        font-family: 'Noto Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      }
+      #loading-shell .hero-tagline {
+        font-size: 1.15rem;
+        color: #7a7267;
+        min-height: 1.8em;
+      }
+      #loading-shell .hero-tagline-cursor {
+        display: inline-block;
+        width: 2px;
+        height: 1.1em;
+        background: #d4a017;
+        vertical-align: text-bottom;
+        margin-left: 2px;
+        animation: shell-blink 1s step-end infinite;
+      }
+      #loading-shell .progress-container {
+        width: 100%;
+        max-width: 320px;
+        margin-top: 2rem;
+      }
+      #loading-shell .progress-bar {
+        width: 100%;
+        height: 4px;
+        background: #e5e0d8;
+        border-radius: 2px;
+        overflow: hidden;
+      }
+      #loading-shell .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #b8860b, #d4a017);
+        border-radius: 2px;
+      }
+      #loading-shell .progress-label {
+        margin-top: 0.5rem;
+        font-size: 0.8rem;
+        color: #7a7267;
+        font-family: 'Noto Sans', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      }
+      @keyframes shell-blink { 50% { opacity: 0; } }
+      body { margin: 0; background: #fafaf8; }
+    </style>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

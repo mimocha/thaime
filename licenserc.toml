@@ -9,21 +9,14 @@ keywords = ["MPL-2.0"]
 includes = [
     "crates/**/*.rs",
     "scripts/**/*.sh",
-    "frontends/**/*.py",
-    "frontends/**/*.sh",
-    "frontends/**/*.c",
-    "frontends/**/*.cc",
-    "frontends/**/*.cpp",
-    "frontends/**/*.h",
-    # Extension-less Python executables
-    "frontends/ibus/ibus-engine-thaime",
+    "web/**/*.ts",
+    "web/**/*.tsx",
+    "web/**/*.css",
+    "web/**/*.html",
 ]
 
 excludes = [
     "target/**",
     "data/**",
+    "web/node_modules/**",
 ]
-
-# Extension-less executables: map to hash/script comment style.
-[mapping.SCRIPT_STYLE]
-filenames = ["ibus-engine-thaime"]

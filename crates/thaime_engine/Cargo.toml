@@ -3,6 +3,7 @@
 [package]
 name = "thaime_engine"
 description = "THAIME Core engine library"
+authors.workspace = true
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -11,6 +12,7 @@ repository.workspace = true
 [features]
 default = ["embed-dict"]
 embed-dict = []
+embed-ngram = []
 
 [lib]
 name = "thaime_engine"
