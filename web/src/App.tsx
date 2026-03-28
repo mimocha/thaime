@@ -180,7 +180,8 @@ const App: React.FC = () => {
           <IMEInput
             status={ime.status}
             preedit={ime.preedit}
-            candidates={ime.candidates}
+            committedPrefix={ime.committedPrefix}
+            hybridCandidates={ime.hybridCandidates}
             selectedIndex={ime.selectedIndex}
             committedText={ime.committedText}
             onKeyDown={ime.handleKeyDown}
@@ -188,6 +189,8 @@ const App: React.FC = () => {
             onCommitCandidate={ime.commitCandidate}
             inputMode={ime.inputMode}
             onSwitchMode={ime.switchMode}
+            candidatePage={ime.candidatePage}
+            totalPages={ime.totalPages}
           />
 
           {ime.committedText && (
@@ -206,7 +209,7 @@ const App: React.FC = () => {
               {ime.inputMode === 'romanization' && (
                 <>
                   <div className="shortcut"><kbd>a</kbd>-<kbd>z</kbd><span>Type to compose</span></div>
-                  <div className="shortcut"><kbd>1</kbd>-<kbd>9</kbd><span>Select candidate</span></div>
+                  <div className="shortcut"><kbd>1</kbd>-<kbd>6</kbd><span>Select candidate</span></div>
                   <div className="shortcut"><kbd>Enter</kbd> / <kbd>Space</kbd><span>Commit word</span></div>
                   <div className="shortcut"><kbd>↑</kbd> <kbd>↓</kbd> / <kbd>Tab</kbd><span>Navigate candidates</span></div>
                   <div className="shortcut"><kbd>Backspace</kbd><span>Edit input</span></div>
