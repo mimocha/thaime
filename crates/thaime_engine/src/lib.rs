@@ -14,7 +14,7 @@ pub mod ranking;
 pub mod trie;
 pub mod validate;
 
-use context::InputContext;
+use context::{FirstWordCandidate, InputContext};
 use ngram::NgramData;
 use ranking::{Candidate, LatticeEdge};
 use trie::Dictionary;
@@ -162,6 +162,24 @@ impl ThaiMeEngine {
         match &self.context {
             Some(ctx) => ctx.lattice_edges(),
             None => &[],
+        }
+    }
+
+    /// Get first-word candidates matching at position 0 of the input buffer.
+    pub fn first_word_candidates(&self) -> Vec<FirstWordCandidate> {
+        match &self.context {
+            Some(ctx) => ctx.first_word_candidates(),
+            None => Vec::new(),
+        }
+    }
+
+    /// Commit a partial word from the front of the buffer.
+    ///
+    /// See [`InputContext::commit_partial`] for details.
+    pub fn commit_partial(&mut self, thai_word: &str, consume_bytes: usize) -> bool {
+        match &mut self.context {
+            Some(ctx) => ctx.commit_partial(thai_word, consume_bytes),
+            None => false,
         }
     }
 

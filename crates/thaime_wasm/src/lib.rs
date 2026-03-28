@@ -83,6 +83,35 @@ impl WasmEngine {
         self.inner.commit(index)
     }
 
+    /// Get first-word candidates: Thai words matching at position 0 of the
+    /// current input buffer, sorted by frequency descending.
+    ///
+    /// Each element is an object with `thai` (string), `frequency` (number),
+    /// and `endPos` (number of bytes consumed from the Latin input).
+    pub fn first_word_candidates(&self) -> JsValue {
+        let candidates: Vec<_> = self
+            .inner
+            .first_word_candidates()
+            .into_iter()
+            .map(|c| FirstWordCandidateJs {
+                thai: c.thai,
+                frequency: c.frequency,
+                end_pos: c.end_pos,
+            })
+            .collect();
+        serde_wasm_bindgen::to_value(&candidates).unwrap_or(JsValue::NULL)
+    }
+
+    /// Commit a partial word from the front of the buffer.
+    ///
+    /// Consumes `consume_bytes` from the front of the Latin input,
+    /// pushes `thai_word` onto committed context, and re-ranks the remainder.
+    ///
+    /// Returns `true` on success.
+    pub fn commit_partial(&mut self, thai_word: &str, consume_bytes: usize) -> bool {
+        self.inner.commit_partial(thai_word, consume_bytes)
+    }
+
     /// Reset the engine state, clearing the input buffer and candidates.
     pub fn reset(&mut self) {
         self.inner.reset();
@@ -149,4 +178,13 @@ impl WasmEngine {
 struct CandidateJs {
     thai: String,
     score: f64,
+}
+
+/// Serializable first-word candidate for JS consumption.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct FirstWordCandidateJs {
+    thai: String,
+    frequency: f64,
+    end_pos: usize,
 }

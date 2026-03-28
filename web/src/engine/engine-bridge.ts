@@ -12,13 +12,21 @@ export interface Candidate {
   score: number;
 }
 
+export interface FirstWordCandidate {
+  thai: string;
+  frequency: number;
+  endPos: number;
+}
+
 export type InputMode = 'romanization' | 'kedmanee' | 'latin';
 
 export interface ThaiEngine {
   pushKey(ch: string): boolean;
   popKey(): boolean;
   candidates(): Candidate[];
+  firstWordCandidates(): FirstWordCandidate[];
   commit(index: number): string | null;
+  commitPartial(thaiWord: string, consumeBytes: number): boolean;
   reset(): void;
   preedit(): string;
   mode(): InputMode;
@@ -46,8 +54,18 @@ class EngineBridge implements ThaiEngine {
     return raw as Candidate[];
   }
 
+  firstWordCandidates(): FirstWordCandidate[] {
+    const raw = this.wasm.first_word_candidates();
+    if (!Array.isArray(raw)) return [];
+    return raw as FirstWordCandidate[];
+  }
+
   commit(index: number): string | null {
     return this.wasm.commit(index) ?? null;
+  }
+
+  commitPartial(thaiWord: string, consumeBytes: number): boolean {
+    return this.wasm.commit_partial(thaiWord, consumeBytes);
   }
 
   reset(): void {
