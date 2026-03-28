@@ -381,6 +381,19 @@ body {
 
 /* ── Preedit ── */
 
+.preedit-container {
+  display: inline;
+}
+
+.preedit-committed-prefix {
+  font-family: var(--font-thai), var(--font-sans);
+  color: var(--color-text-muted);
+  background: var(--color-accent-bg);
+  padding: 0 2px;
+  border-radius: 2px;
+  margin-right: 1px;
+}
+
 .preedit-display {
   font-family: var(--font-sans);
   color: var(--color-preedit);
@@ -465,6 +478,46 @@ body {
   font-family: var(--font-thai), var(--font-sans);
   font-size: 1.25rem;
   color: var(--color-text);
+}
+
+.candidate-passthrough {
+  font-family: var(--font-mono), monospace;
+  font-size: 1rem;
+  color: var(--color-text-muted);
+}
+
+.candidate-divider {
+  height: 1px;
+  background: var(--color-border);
+  margin: 0 0.5rem;
+}
+
+.candidate-zone-label {
+  margin-left: auto;
+  font-size: 0.65rem;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.6;
+}
+
+.candidate-page-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.25rem 1rem;
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+  border-top: 1px solid var(--color-border);
+}
+
+.candidate-page-arrow {
+  font-size: 0.6rem;
+}
+
+.candidate-page-num {
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── Output Actions ── */

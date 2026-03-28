@@ -10,10 +10,26 @@
 //! for the MVP; incremental updates can be added later if profiling shows
 //! a need.
 
+use std::collections::HashMap;
+
 use crate::config::{MAX_BUFFER_LEN, MAX_CONTEXT_DEPTH};
 use crate::ngram::NgramData;
 use crate::ranking::{self, Candidate, LatticeEdge, RankingParams};
 use crate::trie::Dictionary;
+
+/// A single-word candidate matching at position 0 of the input buffer.
+///
+/// Used by the hybrid candidate UX to present first-word alternatives
+/// alongside the full-sentence Viterbi result.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct FirstWordCandidate {
+    /// Thai text for this word.
+    pub thai: String,
+    /// Unigram frequency score (higher = more common).
+    pub frequency: f64,
+    /// Number of bytes consumed from the Latin input buffer.
+    pub end_pos: usize,
+}
 
 /// Stateful input session context.
 ///
@@ -148,6 +164,71 @@ impl InputContext {
         if !self.buffer.is_empty() {
             self.refresh_candidates();
         }
+    }
+
+    /// Get first-word candidates: distinct Thai words matching at position 0
+    /// of the current input buffer, deduplicated by Thai text (best frequency
+    /// kept), sorted by frequency descending.
+    pub fn first_word_candidates(&self) -> Vec<FirstWordCandidate> {
+        if self.buffer.is_empty() {
+            return Vec::new();
+        }
+
+        // Collect lattice edges starting at position 0, deduplicate by Thai text
+        let mut best: HashMap<String, FirstWordCandidate> = HashMap::new();
+        for edge in &self.lattice_edges {
+            if edge.start != 0 {
+                continue;
+            }
+            best.entry(edge.thai.clone())
+                .and_modify(|existing| {
+                    if edge.frequency > existing.frequency {
+                        existing.frequency = edge.frequency;
+                        existing.end_pos = edge.end;
+                    }
+                })
+                .or_insert(FirstWordCandidate {
+                    thai: edge.thai.clone(),
+                    frequency: edge.frequency,
+                    end_pos: edge.end,
+                });
+        }
+
+        let mut result: Vec<FirstWordCandidate> = best.into_values().collect();
+        result.sort_by(|a, b| {
+            b.frequency
+                .partial_cmp(&a.frequency)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        result
+    }
+
+    /// Commit a partial word from the front of the buffer.
+    ///
+    /// Consumes `consume_bytes` from the front of the Latin input buffer,
+    /// pushes `thai_word` onto the committed context, and re-ranks the
+    /// remaining buffer.
+    ///
+    /// Returns `true` on success, `false` if `consume_bytes` is 0 or
+    /// exceeds the buffer length.
+    pub fn commit_partial(&mut self, thai_word: &str, consume_bytes: usize) -> bool {
+        if consume_bytes == 0 || consume_bytes > self.buffer.len() {
+            return false;
+        }
+
+        // Push the Thai word onto committed context
+        self.committed_context.push(thai_word.to_string());
+        let len = self.committed_context.len();
+        if len > MAX_CONTEXT_DEPTH {
+            self.committed_context.drain(..len - MAX_CONTEXT_DEPTH);
+        }
+
+        // Trim the buffer
+        self.buffer = self.buffer[consume_bytes..].to_string();
+
+        // Re-rank the remainder
+        self.refresh_candidates();
+        true
     }
 
     /// Get the current Latin input buffer (for preedit display).
@@ -311,5 +392,123 @@ mod tests {
         assert_eq!(candidates[0].word_count(), 2);
         assert_eq!(candidates[0].words[0].thai, "ไม่");
         assert_eq!(candidates[0].words[1].thai, "ใน");
+    }
+
+    // ── First-word candidates ───────────────────────────────────────
+
+    #[test]
+    fn test_first_word_candidates_empty_buffer() {
+        let ctx = make_context();
+        assert!(ctx.first_word_candidates().is_empty());
+    }
+
+    #[test]
+    fn test_first_word_candidates_single_word() {
+        let mut ctx = make_context();
+        for ch in "mai".chars() {
+            ctx.push_key(ch);
+        }
+
+        let fw = ctx.first_word_candidates();
+        // "mai" matches: "ma" → มา, "mai" → ไม่/ไหม/ใหม่ = 4 first-word candidates
+        assert_eq!(fw.len(), 4);
+        // Should be sorted by frequency descending — ไม่ (0.013) is highest
+        assert_eq!(fw[0].thai, "ไม่");
+        assert_eq!(fw[0].end_pos, 3);
+        // มา has end_pos 2 (consumes "ma")
+        let ma = fw.iter().find(|c| c.thai == "มา").unwrap();
+        assert_eq!(ma.end_pos, 2);
+    }
+
+    #[test]
+    fn test_first_word_candidates_multi_word() {
+        let mut ctx = make_context();
+        for ch in "mainai".chars() {
+            ctx.push_key(ch);
+        }
+
+        let fw = ctx.first_word_candidates();
+        // Should include matches at position 0: "ma" → มา, "mai" → ไม่/ไหม/ใหม่
+        assert!(fw.len() >= 2);
+        // All should start at position 0
+        for c in &fw {
+            assert!(c.end_pos > 0);
+            assert!(c.end_pos <= 6); // <= length of "mainai"
+        }
+    }
+
+    // ── Partial commit ──────────────────────────────────────────────
+
+    #[test]
+    fn test_commit_partial_trims_buffer() {
+        let mut ctx = make_context();
+        for ch in "mainai".chars() {
+            ctx.push_key(ch);
+        }
+
+        // Commit first word "mai" (3 bytes) as ไม่
+        assert!(ctx.commit_partial("ไม่", 3));
+        assert_eq!(ctx.preedit(), "nai");
+        // Context should contain the committed word
+        assert_eq!(ctx.committed_context(), &["ไม่"]);
+        // Candidates should be refreshed for "nai"
+        assert!(!ctx.candidates().is_empty());
+    }
+
+    #[test]
+    fn test_commit_partial_entire_buffer() {
+        let mut ctx = make_context();
+        for ch in "mai".chars() {
+            ctx.push_key(ch);
+        }
+
+        // Commit entire buffer
+        assert!(ctx.commit_partial("ไม่", 3));
+        assert!(ctx.preedit().is_empty());
+        assert!(ctx.candidates().is_empty());
+        assert_eq!(ctx.committed_context(), &["ไม่"]);
+    }
+
+    #[test]
+    fn test_commit_partial_zero_bytes_rejected() {
+        let mut ctx = make_context();
+        for ch in "mai".chars() {
+            ctx.push_key(ch);
+        }
+
+        assert!(!ctx.commit_partial("ไม่", 0));
+        // Buffer unchanged
+        assert_eq!(ctx.preedit(), "mai");
+    }
+
+    #[test]
+    fn test_commit_partial_exceeds_buffer_rejected() {
+        let mut ctx = make_context();
+        for ch in "mai".chars() {
+            ctx.push_key(ch);
+        }
+
+        assert!(!ctx.commit_partial("ไม่", 100));
+        assert_eq!(ctx.preedit(), "mai");
+    }
+
+    #[test]
+    fn test_commit_partial_context_depth() {
+        let mut ctx = make_context();
+
+        // Commit three words to test context depth trimming
+        for ch in "mainai".chars() {
+            ctx.push_key(ch);
+        }
+        ctx.commit_partial("ไม่", 3);
+
+        for ch in "mainai".chars() {
+            ctx.push_key(ch);
+        }
+        ctx.commit_partial("ใน", 3);
+
+        // MAX_CONTEXT_DEPTH is 2, so only last 2 should remain
+        let context = ctx.committed_context();
+        assert!(context.len() <= MAX_CONTEXT_DEPTH);
     }
 }

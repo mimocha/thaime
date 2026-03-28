@@ -7,13 +7,14 @@
 import React, { useRef, useEffect } from 'react';
 import { PreeditDisplay } from './PreeditDisplay';
 import { CandidateList } from './CandidateList';
-import type { Candidate, InputMode } from '../engine/engine-bridge';
-import type { IMEStatus } from '../hooks/useIME';
+import type { InputMode } from '../engine/engine-bridge';
+import type { IMEStatus, HybridCandidate } from '../hooks/useIME';
 
 interface IMEInputProps {
   status: IMEStatus;
   preedit: string;
-  candidates: Candidate[];
+  committedPrefix: string;
+  hybridCandidates: HybridCandidate[];
   selectedIndex: number;
   committedText: string;
   onKeyDown: (e: React.KeyboardEvent) => void;
@@ -21,6 +22,8 @@ interface IMEInputProps {
   onCommitCandidate: (index: number) => void;
   inputMode: InputMode;
   onSwitchMode: (mode: InputMode) => void;
+  candidatePage: number;
+  totalPages: number;
 }
 
 // Intentionally called Karaoke for user-friendliness, even though it's technically romanization mode
@@ -35,7 +38,8 @@ const MODE_ORDER: InputMode[] = ['romanization', 'kedmanee', 'latin'];
 export const IMEInput: React.FC<IMEInputProps> = ({
   status,
   preedit,
-  candidates,
+  committedPrefix,
+  hybridCandidates,
   selectedIndex,
   committedText,
   onKeyDown,
@@ -43,6 +47,8 @@ export const IMEInput: React.FC<IMEInputProps> = ({
   onCommitCandidate,
   inputMode,
   onSwitchMode,
+  candidatePage,
+  totalPages,
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const isComposing = status === 'composing';
@@ -105,17 +111,19 @@ export const IMEInput: React.FC<IMEInputProps> = ({
       >
         <span className="committed-text">{committedText}</span>
         {inputMode === 'romanization' && (
-          <PreeditDisplay preedit={preedit} visible={isComposing} />
+          <PreeditDisplay preedit={preedit} committedPrefix={committedPrefix} visible={isComposing} />
         )}
         <span className="cursor" />
       </div>
 
       {inputMode === 'romanization' && (
         <CandidateList
-          candidates={candidates}
+          candidates={hybridCandidates}
           selectedIndex={selectedIndex}
           visible={showCandidates}
           onSelect={onCommitCandidate}
+          candidatePage={candidatePage}
+          totalPages={totalPages}
         />
       )}
     </div>
