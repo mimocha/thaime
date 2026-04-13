@@ -40,6 +40,7 @@ export interface UseIMEReturn extends IMEState {
   handleKeyDown: (e: React.KeyboardEvent) => void;
   handleMobileInput: (e: React.FormEvent<HTMLInputElement>) => void;
   commitCandidate: (index: number) => void;
+  commitHybridCandidate: (index: number) => void;
   clearCommitted: () => void;
   pushKeyProgrammatic: (ch: string) => void;
   commitTop: () => void;
@@ -221,7 +222,14 @@ export function useIME(): UseIMEReturn {
       // Partial commit — commit just this word, keep remainder
       const success = engine.commitPartial(candidate.thai, candidate.endPos);
       if (success) {
-        setCommittedPrefix((prev) => prev + candidate.thai);
+        const newPrefix = committedPrefix + candidate.thai;
+        // If buffer is now empty, flush accumulated prefix to committed text
+        if (engine.preedit().length === 0) {
+          setCommittedText((prev) => prev + newPrefix);
+          setCommittedPrefix('');
+        } else {
+          setCommittedPrefix(newPrefix);
+        }
       }
     } else if (candidate.zone === 'pass-through') {
       // Commit raw Latin text as-is
@@ -496,6 +504,7 @@ export function useIME(): UseIMEReturn {
     handleKeyDown,
     handleMobileInput,
     commitCandidate,
+    commitHybridCandidate,
     clearCommitted,
     pushKeyProgrammatic,
     commitTop,

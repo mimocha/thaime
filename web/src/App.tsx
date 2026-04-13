@@ -186,7 +186,7 @@ const App: React.FC = () => {
             committedText={ime.committedText}
             onKeyDown={ime.handleKeyDown}
             onMobileInput={ime.handleMobileInput}
-            onCommitCandidate={ime.commitCandidate}
+            onCommitCandidate={ime.commitHybridCandidate}
             inputMode={ime.inputMode}
             onSwitchMode={ime.switchMode}
             candidatePage={ime.candidatePage}
