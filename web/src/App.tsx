@@ -266,18 +266,18 @@ const App: React.FC = () => {
                 <p>Linux alpha</p>
                 <ul>
                   <li>Fedora via COPR</li>
+                  <li>Ubuntu via Launchpad PPA</li>
                   <li>IBus frontend</li>
                 </ul>
               </div>
             </div>
 
             <div className="roadmap-item">
-              <div className="roadmap-label">2027</div>
+              <div className="roadmap-label">Q1 2027</div>
               <div className="roadmap-dot" />
               <div className="roadmap-content">
                 <p>Wider Linux beta</p>
                 <ul>
-                  <li>Ubuntu via Launchpad PPA</li>
                   <li>Fedora / RHEL, Ubuntu / Debian, Arch</li>
                   <li>Fcitx5 support</li>
                 </ul>

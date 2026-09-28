@@ -25,7 +25,7 @@ The web demo runs the full engine client-side via WebAssembly - no servers requi
 
 THAIME is still under active development; no user-friendly installation methods are provided yet.
 
-The first packaged release (Fedora COPR alpha) is planned for the end of 2026. See [Roadmap](#roadmap) section below.
+The first packaged releases (Fedora COPR and Ubuntu PPA alpha) are planned for the end of 2026. See [Roadmap](#roadmap) section below.
 
 For developers, use the CLI/TUI, or try out the web demo.
 See the [Installation Guide](docs/installation.md) for details.
@@ -150,14 +150,14 @@ A typing-practice web app built on the web demo, where volunteers help improve T
 First packaged release for early adopters on Linux:
 
 - **Fedora** via [COPR](https://copr.fedorainfracloud.org/)
+- **Ubuntu** via [Launchpad PPA](https://launchpad.net/)
 - IBus frontend with basic compose/commit workflow
 - Feedback-driven iteration on dictionary coverage and ranking quality
 
-### 2027 - Wider Linux beta
+### Q1 2027 - Wider Linux beta
 
 Broader distribution packaging and more frontend support:
 
-- **Ubuntu** via [Launchpad PPA](https://launchpad.net/)
 - **Fedora / RHEL** via dnf
 - **Ubuntu / Debian** via apt
 - **Arch** via AUR
