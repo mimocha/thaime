@@ -25,7 +25,7 @@ The web demo runs the full engine client-side via WebAssembly - no servers requi
 
 THAIME is still under active development; no user-friendly installation methods are provided yet.
 
-User friendly releases are planned for Q3-4 2026 and beyond. See [Roadmap](#roadmap) section below.
+The first packaged release (Fedora COPR alpha) is planned for the end of 2026. See [Roadmap](#roadmap) section below.
 
 For developers, use the CLI/TUI, or try out the web demo.
 See the [Installation Guide](docs/installation.md) for details.
@@ -136,19 +136,28 @@ THAIME is in **pre-alpha** - the core engine works, but packaging and platform s
 - Interactive CLI and TUI debugger for development
 - Web demo via WebAssembly (client-side, no server)
 
-### Q3 2026 - Linux community package alpha
+### Q4 2026 - Crowdsourced typing demo
 
-First packaged releases targeting early adopters on Linux:
+A typing-practice web app built on the web demo, where volunteers help improve THAIME:
+
+- Type displayed Thai text using Latin romanization, monkeytype-style
+- Mark and submit misconversions
+- Share preferred romanizations to improve dictionary and ranking data
+- Participation is voluntary; see [the concept doc](docs/plans/crowdsourcing-demo.md)
+
+### End of 2026 - Linux alpha
+
+First packaged release for early adopters on Linux:
 
 - **Fedora** via [COPR](https://copr.fedorainfracloud.org/)
-- **Ubuntu** via [Launchpad PPA](https://launchpad.net/)
 - IBus frontend with basic compose/commit workflow
 - Feedback-driven iteration on dictionary coverage and ranking quality
 
-### Q4 2026 - Wider Linux beta
+### 2027 - Wider Linux beta
 
 Broader distribution packaging and more frontend support:
 
+- **Ubuntu** via [Launchpad PPA](https://launchpad.net/)
 - **Fedora / RHEL** via dnf
 - **Ubuntu / Debian** via apt
 - **Arch** via AUR
@@ -156,7 +165,7 @@ Broader distribution packaging and more frontend support:
 - Wider frontend support (Fcitx5 and more)
 - Open for community contributions
 
-### 2027 and beyond - Windows / macOS public release
+### Later - Windows / macOS public release
 
 - Windows IME (TSF) and macOS input method frontends
 - Cross-platform installer / package manager support

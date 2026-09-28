@@ -247,33 +247,45 @@ const App: React.FC = () => {
             </div>
 
             <div className="roadmap-item">
-              <div className="roadmap-label">Q3 2026</div>
+              <div className="roadmap-label">Q4 2026</div>
               <div className="roadmap-dot" />
               <div className="roadmap-content">
-                <p>Linux community package alpha</p>
+                <p>Crowdsourced typing demo</p>
                 <ul>
-                  <li>Fedora via COPR</li>
-                  <li>Ubuntu via Launchpad PPA</li>
+                  <li>Type Thai text in romanization</li>
+                  <li>Report misconversions</li>
+                  <li>Share your preferred spellings</li>
                 </ul>
               </div>
             </div>
 
             <div className="roadmap-item">
-              <div className="roadmap-label">Q4 2026</div>
+              <div className="roadmap-label">End of 2026</div>
+              <div className="roadmap-dot" />
+              <div className="roadmap-content">
+                <p>Linux alpha</p>
+                <ul>
+                  <li>Fedora via COPR</li>
+                  <li>IBus frontend</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="roadmap-item">
+              <div className="roadmap-label">2027</div>
               <div className="roadmap-dot" />
               <div className="roadmap-content">
                 <p>Wider Linux beta</p>
                 <ul>
-                  <li>Fedora / RHEL via dnf</li>
-                  <li>Ubuntu / Debian via apt</li>
-                  <li>Arch via AUR</li>
-                  <li>Other major distros</li>
+                  <li>Ubuntu via Launchpad PPA</li>
+                  <li>Fedora / RHEL, Ubuntu / Debian, Arch</li>
+                  <li>Fcitx5 support</li>
                 </ul>
               </div>
             </div>
 
             <div className="roadmap-item">
-              <div className="roadmap-label">2027+</div>
+              <div className="roadmap-label">Later</div>
               <div className="roadmap-dot" />
               <div className="roadmap-content">
                 <p>Windows / macOS public release</p>
