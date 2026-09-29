@@ -138,12 +138,12 @@ THAIME is in **pre-alpha** - the core engine works, but packaging and platform s
 
 ### Q4 2026 - Crowdsourced typing demo
 
-A typing-practice web app built on the web demo, where volunteers help improve THAIME:
+The web demo becomes a single page for both trying THAIME and helping improve it:
 
-- Type displayed Thai text using Latin romanization, monkeytype-style
+- Type generated or your own Thai text, MonkeyType-style, with THAIME or in raw romanization
 - Mark and submit misconversions
-- Share preferred romanizations to improve dictionary and ranking data
-- Participation is voluntary; see [the concept doc](docs/plans/crowdsourcing-demo.md)
+- Share how you naturally romanize Thai words, to improve dictionary and ranking data
+- Contributing is opt-in; see [the plan](docs/plans/crowdsourcing-demo.md)
 
 ### End of 2026 - Linux alpha
 
