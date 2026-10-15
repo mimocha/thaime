@@ -283,8 +283,10 @@ Small, independent fixes. Covered by this plan; no child plan.
       absent (F14); remove the duplicated SPDX header line.
 - [ ] WASM: expose `has_ngram()`; web: log it on `visibilitychange`; update the mobile
       issue doc with the alternative theory (F15).
-- [ ] Data license notice: `data/README.md` and the web demo state the data license
-      and attributions (D12, F21), once thaime-nlp publishes `LICENSE-DATA`/NOTICE.
+- [ ] Data license notice: `fetch-data.sh` also downloads `LICENSE-DATA` and
+      `NOTICE-DATA.md` from the pinned release; `data/README.md` and the web demo state
+      the data license and attributions (D12, F21). Needs the thaime-nlp cross-repo
+      tasks below; the pin stays at v1.0.0.
 
 **Done when:** CI enforces clippy warnings on `dev`; `cargo test --workspace` runs the
 regression snapshot; `thaime_engine` builds only a `lib` with no cbindgen dependency;
@@ -388,10 +390,15 @@ Thai in the WS5c apps; the PPA package installs on Ubuntu 26.04.
 
 ### Cross-repo Tasks (thaime-nlp)
 
-- [ ] Add `LICENSE-DATA` (CC-BY-SA-4.0) and a NOTICE with source attributions; include
-      both in every release's assets (D12).
+- [ ] Add `LICENSE-DATA` (CC-BY-SA-4.0) and `NOTICE-DATA.md` with source attributions;
+      include both in every release's assets (D12). The data license also covers
+      `benchmarks/word-conversion/`; hand-authored `data/dictionaries/` stay MIT.
+- [ ] Attach both files to the existing v1.0.0 release without touching its data
+      assets, so thaime's pinned checksums stay valid.
 - [ ] Correct the Thai Wikipedia license in `src/data/registry.py` and
       `data/corpora/README.md` (current dumps are CC-BY-SA-4.0).
+- [ ] Document the raw n-gram TSVs (unnormalized, `count >= 2`, cannot rebuild the
+      binary alone); no extra reproducibility assets for now.
 
 ## Execution Order
 
@@ -480,6 +487,9 @@ One branch per workstream, off `dev`, merged into `dev` locally:
   D3 resolved to discard; D7 resolved to three modes.
 - 2026-10-15: Open question 1 resolved (keep raw n-gram TSVs). Corrected the earlier
   claim that they were unfiltered: the count stage already drops n-grams with count 1.
+- 2026-10-15: Data license scope settled with the maintainer: the license files are
+  attached to the existing v1.0.0 release (no new data release), the license covers
+  release artifacts and corpus-derived benchmarks, and no release-script license guard.
 
 ## Deviations
 
