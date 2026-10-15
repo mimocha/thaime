@@ -25,3 +25,10 @@ cbindgen = "0.29"
 yada = "0.5"
 serde = { version = "1", features = ["derive"] }
 bincode = "1"
+
+[dev-dependencies]
+toml = "0.8"
+
+[[test]]
+name = "regression"
+required-features = ["embed-dict"]
