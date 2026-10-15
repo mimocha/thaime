@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: MPL-2.0
-
-# SPDX-License-Identifier: MPL-2.0
 #
 # Web demo build pipeline.
 # Requires running fetch-data.sh first to populate data/ with binaries.
