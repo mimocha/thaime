@@ -12,30 +12,35 @@
 4. The conversion for the same input now produces a different top candidate (e.g., "มาโล่งใจไทยมี")
 5. Refreshing the page restores correct behavior
 
-The wrong result is a *valid alternative segmentation*, not garbage — suggesting the statistical scoring data (n-gram model) has been corrupted, shifting which word boundaries the Viterbi algorithm prefers.
+The wrong result is a *valid alternative segmentation*, not garbage. It is exactly what the engine returns with **no n-gram data**: unigram-only ranking puts มาโล่งใจไทยมี first for `malongchaithaime` (checked 2026-10-15 with the v1.0.0 data).
 
-## Leading Theory: WASM Linear Memory Corruption Under Memory Pressure
+## Leading Theory: Tab Discarded, Reloaded Without N-gram Data
 
-Android aggressively reclaims memory from backgrounded browser tabs. The WASM linear memory holds the trie data structure and n-gram binary blob as raw bytes. If Android evicts and zero-fills those memory pages, the engine continues to "work" but produces different rankings because its statistical data is corrupted.
+Android discards backgrounded tabs under memory pressure. Returning to a discarded tab reloads the page. On reload, the engine starts in dict-only mode and the n-gram binary (~10 MB) is fetched in the background (`wasm-loader.ts`, `fetchNgram`). If that fetch fails, is slow, or is throttled while the page is still resuming, the engine ranks unigram-only. A fetch failure is logged with `console.warn` only, so nothing on the page shows it. Typing again before the fetch completes gives the wrong top candidate.
 
-Key evidence supporting this theory:
-- Refreshing the page fixes the issue (re-loads all WASM memory from scratch)
-- The wrong result is a different valid segmentation, not an error — consistent with corrupted frequency/score data rather than structural damage
-- The n-gram blob is the largest contiguous allocation in WASM memory, making it the most likely victim of page eviction
-- No `visibilitychange` or lifecycle handlers exist to detect or recover from this
+Evidence:
+- The observed wrong result matches the no-n-gram ranking exactly.
+- A reloaded tab looks the same as the original to the user (same URL, demo restored).
+- Refreshing (with the network now active) loads the n-gram data and fixes the result.
 
-## Alternative Theories (less likely)
+## Less Likely Theories
+
+### WASM linear memory corruption under memory pressure
+The original leading theory: Android evicts and zero-fills pages of the WASM linear memory holding the n-gram data. Unlikely: the OS does not silently zero-fill a live process's memory. A backgrounded tab is either kept intact or discarded and reloaded. Corrupted (rather than missing) scores would also be unlikely to land exactly on the no-n-gram result.
 
 ### Stale committed_context
 The engine maintains a `committed_context` vector (max 2 words) for bigram/trigram scoring. If previous interactions left context words that happen to shift scoring for "malongchaithaime", this could change the top candidate. However, this context persists across all in-session interactions and wouldn't change behavior specifically after backgrounding.
-
-### N-gram fetch race condition
-The n-gram data is loaded asynchronously after the engine initializes (`wasm-loader.ts:70-72`). If the page is backgrounded during the narrow window of initial n-gram fetch, the fetch could fail silently. The engine would then operate in dict-only mode (no n-gram scoring), which produces different rankings. However, this only applies during initial page load, not after the engine is fully initialized.
 
 ### JIT deoptimization
 After a long background period, the browser may discard JIT-compiled WASM code and recompile on resume. WASM semantics are deterministic, so this should not change behavior. Browser bugs are theoretically possible but extremely unlikely.
 
 ## Diagnostic Steps
+
+### Step 0: Log n-gram state on resume (implemented)
+
+The web demo logs `[THAIME] Tab visible; n-gram loaded: <true|false>` (via `WasmEngine.has_ngram()`) whenever the tab becomes visible. Reproduce with remote debugging (`chrome://inspect`) attached: `false` after a resume confirms the leading theory; a `N-gram loading failed` warning shows why. If it confirms, the fix is to surface the dict-only state in the UI and retry the fetch.
+
+The steps below apply only if the log shows `true` while the ranking is wrong.
 
 ### Step 1: Canary health check on visibilitychange
 

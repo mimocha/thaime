@@ -65,6 +65,7 @@ export function loadEngine(
     }
 
     engineInstance = new WasmEngine(dictBytes);
+    logNgramStateOnResume(engineInstance);
 
     // Fire-and-forget: fetch n-gram data in the background
     fetchNgram(engineInstance).catch((err) => {
@@ -80,6 +81,19 @@ export function loadEngine(
   });
 
   return initPromise;
+}
+
+/**
+ * Log whether n-gram data is loaded each time the tab becomes visible.
+ * Diagnostic for docs/issues/mobile-background-ranking-corruption.md: without
+ * n-gram data, ranking silently falls back to unigram-only.
+ */
+function logNgramStateOnResume(engine: WasmEngine): void {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      console.info(`[THAIME] Tab visible; n-gram loaded: ${engine.has_ngram()}`);
+    }
+  });
 }
 
 /**

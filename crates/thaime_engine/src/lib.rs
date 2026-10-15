@@ -125,6 +125,11 @@ impl ThaiMeEngine {
         }
     }
 
+    /// Whether n-gram data is loaded (otherwise ranking is unigram-only).
+    pub fn has_ngram(&self) -> bool {
+        self.context.as_ref().is_some_and(InputContext::has_ngram)
+    }
+
     /// Append a Latin character to the input buffer.
     ///
     /// Returns `true` if the key was consumed by the engine.

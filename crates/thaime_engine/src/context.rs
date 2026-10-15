@@ -166,6 +166,11 @@ impl InputContext {
         }
     }
 
+    /// Whether n-gram data is loaded (otherwise ranking is unigram-only).
+    pub fn has_ngram(&self) -> bool {
+        self.ngram.is_some()
+    }
+
     /// Get first-word candidates: distinct Thai words matching at position 0
     /// of the current input buffer, deduplicated by Thai text (best frequency
     /// kept), sorted by frequency descending.

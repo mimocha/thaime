@@ -133,6 +133,11 @@ impl WasmEngine {
         Ok(())
     }
 
+    /// Whether n-gram data is loaded (otherwise ranking is unigram-only).
+    pub fn has_ngram(&self) -> bool {
+        self.inner.has_ngram()
+    }
+
     /// Get the current input mode.
     ///
     /// Returns `"romanization"`, `"kedmanee"`, or `"latin"`.
