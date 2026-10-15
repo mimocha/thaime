@@ -1,14 +1,11 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: MPL-2.0
-
-# SPDX-License-Identifier: MPL-2.0
 #
 # Fetch NLP data artifacts from thaime-nlp GitHub Releases,
 # verify checksums, decompress, and compile trie binaries.
 #
 # Prerequisites:
-#   - gh (GitHub CLI): https://cli.github.com/
-#   - gunzip, sha256sum
+#   - curl, gunzip, sha256sum
 #   - Rust toolchain (for trie compilation)
 #
 # Usage:
@@ -71,19 +68,18 @@ if [ -n "${THAIME_DATA_DIR:-}" ]; then
 else
     echo "Downloading from GitHub Release ${VERSION}..."
 
-    # Check for gh CLI
-    if ! command -v gh &>/dev/null; then
-        echo "Error: 'gh' (GitHub CLI) is required. Install from https://cli.github.com/"
+    if ! command -v curl &>/dev/null; then
+        echo "Error: 'curl' is required to download release assets."
         exit 1
     fi
 
-    # Download .gz files into input dir
-    gh release download "$VERSION" \
-        --repo "$REPO" \
-        --pattern "$TRIE_FILE" \
-        --pattern "$NGRAM_FILE" \
-        --dir "$INPUT_DIR" \
-        --clobber
+    # Release assets are public; no GitHub authentication needed.
+    BASE_URL="https://github.com/${REPO}/releases/download/${VERSION}"
+    for file in "$TRIE_FILE" "$NGRAM_FILE"; do
+        echo "  $file"
+        curl --fail --location --silent --show-error --retry 3 \
+            --output "$INPUT_DIR/$file" "$BASE_URL/$file"
+    done
 
     # Verify checksums
     echo "Verifying checksums..."

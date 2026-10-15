@@ -269,19 +269,19 @@ immutable shared data, per-context state, one `Output` per event.
 
 Small, independent fixes. Covered by this plan; no child plan.
 
-- [ ] Fix the clippy line in `ci.yml` so `-D warnings` is enforced (F12); run CI on
+- [x] Fix the clippy line in `ci.yml` so `-D warnings` is enforced (F12); run CI on
       pushes and PRs to `dev` as well as `main`.
-- [ ] Headless regression test: run `tests/harness-regression.toml` in `cargo test`
+- [x] Headless regression test: run `tests/harness-regression.toml` in `cargo test`
       against the snapshot (D14, F20). CI already fetches data.
-- [ ] Delete the C ABI, cbindgen, `cbindgen.toml`, and the `cdylib`/`staticlib`
+- [x] Delete the C ABI, cbindgen, `cbindgen.toml`, and the `cdylib`/`staticlib`
       crate types (D8); update docs that describe the C ABI (`docs/architecture.md`,
       `docs/build-guide.md`, README, and the maintainer's local `AGENTS.md`).
-- [ ] Docs: dict binaries are fetched, not committed; `build.sh` →
+- [x] Docs: dict binaries are fetched, not committed; `build.sh` →
       `scripts/build-web.sh`; drop or mark `frontends/` as planned; README and web
       demo roadmap show the alpha before the crowdsourcing demo (F13).
-- [ ] `fetch-data.sh`: fall back to `curl` from the public release URL when `gh` is
-      absent (F14); remove the duplicated SPDX header line.
-- [ ] WASM: expose `has_ngram()`; web: log it on `visibilitychange`; update the mobile
+- [x] `fetch-data.sh` downloads with `curl` from the public release URL and no longer
+      uses `gh` (F14); duplicated SPDX header line removed.
+- [x] WASM: expose `has_ngram()`; web: log it on `visibilitychange`; update the mobile
       issue doc with the alternative theory (F15).
 - [ ] Data license notice: `fetch-data.sh` also downloads `LICENSE-DATA` and
       `NOTICE-DATA.md` from the pinned release; `data/README.md` and the web demo state
@@ -490,10 +490,14 @@ One branch per workstream, off `dev`, merged into `dev` locally:
 - 2026-10-15: Data license scope settled with the maintainer: the license files are
   attached to the existing v1.0.0 release (no new data release), the license covers
   release artifacts and corpus-derived benchmarks, and no release-script license guard.
+- 2026-10-15: The maintainer approved curl-only data fetching.
 
 ## Deviations
 
-None yet.
+- 2026-10-15: WS0 replaced `gh` with `curl` as the only download path, instead of a
+  gh→curl fallback. Release assets are public; an installed but unauthenticated `gh`
+  fails where `curl` works; one path is simpler. The `GH_TOKEN` environment variable
+  was removed from `ci.yml` and `deploy-web.yml`. Approved by the maintainer.
 
 ## References
 

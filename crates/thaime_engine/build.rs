@@ -5,14 +5,6 @@ use std::path::PathBuf;
 fn main() {
     let crate_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
 
-    // --- C header generation (cbindgen) ---
-    cbindgen::Builder::new()
-        .with_crate(&crate_dir)
-        .with_config(cbindgen::Config::from_file("../../cbindgen.toml").unwrap())
-        .generate()
-        .expect("Unable to generate C bindings")
-        .write_to_file("../../target/thaime.h");
-
     // --- Dictionary path discovery ---
     // Resolve versioned dict files (e.g. trie-v1_0_0.bin) with fallback to
     // unversioned names (trie.bin) for dev builds.

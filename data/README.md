@@ -19,10 +19,10 @@ all required data files:
 ```
 
 This reads `thaime-data.toml` for the pinned NLP release version and checksums,
-downloads artifacts from the `thaime-nlp` GitHub Release, and compiles trie
-binaries via `thaime_dictgen`.
+downloads artifacts from the public `thaime-nlp` GitHub Release (no GitHub login
+needed), and compiles trie binaries via `thaime_dictgen`.
 
-**Requirements:** `gh` (GitHub CLI), `gunzip`, `sha256sum`, Rust toolchain.
+**Requirements:** `curl`, `gunzip`, `sha256sum`, Rust toolchain.
 
 ### Using local data
 

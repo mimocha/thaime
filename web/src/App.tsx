@@ -247,19 +247,6 @@ const App: React.FC = () => {
             </div>
 
             <div className="roadmap-item">
-              <div className="roadmap-label">Q4 2026</div>
-              <div className="roadmap-dot" />
-              <div className="roadmap-content">
-                <p>Crowdsourced typing demo</p>
-                <ul>
-                  <li>Type Thai text in romanization</li>
-                  <li>Report misconversions</li>
-                  <li>Share your preferred spellings</li>
-                </ul>
-              </div>
-            </div>
-
-            <div className="roadmap-item">
               <div className="roadmap-label">End of 2026</div>
               <div className="roadmap-dot" />
               <div className="roadmap-content">
@@ -268,6 +255,19 @@ const App: React.FC = () => {
                   <li>Fedora via COPR</li>
                   <li>Ubuntu via Launchpad PPA</li>
                   <li>IBus frontend</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="roadmap-item">
+              <div className="roadmap-label">After alpha</div>
+              <div className="roadmap-dot" />
+              <div className="roadmap-content">
+                <p>Crowdsourced typing demo</p>
+                <ul>
+                  <li>Type Thai text in romanization</li>
+                  <li>Report misconversions</li>
+                  <li>Share your preferred spellings</li>
                 </ul>
               </div>
             </div>
