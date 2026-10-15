@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
 
 env:
   CARGO_TERM_COLOR: always
@@ -42,7 +42,7 @@ jobs:
         run: ./scripts/fetch-data.sh
 
       - name: Run clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings]
+        run: cargo clippy --all-targets --all-features -- -D warnings
 
       - name: Build
         run: cargo build --workspace
