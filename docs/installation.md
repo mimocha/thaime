@@ -18,7 +18,7 @@ See the [Build Guide](build-guide.md) for prerequisites and build instructions.
 
 | Frontend | Platform | Status |
 |----------|----------|--------|
-| IBus     | Linux (GNOME, etc.) | Planned |
+| IBus     | Linux (GNOME, etc.) | In progress: alpha via Fedora COPR and Ubuntu PPA, end of 2026 |
 | Fcitx5   | Linux (KDE, etc.)   | Planned |
 
-The engine produces a shared library (`libthaime_engine.so`) with a C ABI, designed for consumption by these input method frameworks. See [Architecture](architecture.md) for details on the C ABI design.
+The IBus frontend is a Rust program (`ibus-engine-thaime`) that talks to `ibus-daemon` over D-Bus; see [plan 002](plans/002-linux-alpha.md). Fcitx5 support needs a C API, which will be designed when that work starts. See [Architecture](architecture.md#frontend-interface).

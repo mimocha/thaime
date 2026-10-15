@@ -35,8 +35,8 @@ See the [Installation Guide](docs/installation.md) for details.
 ```
 thaime/
 ├── crates/
-│   ├── thaime_engine/     Core library (lib + cdylib + staticlib)
-│   │   ├── lib.rs         ThaiMeEngine struct + C ABI exports
+│   ├── thaime_engine/     Core library
+│   │   ├── lib.rs         ThaiMeEngine struct (public Rust API)
 │   │   ├── trie.rs        Double-array trie dictionary (yada)
 │   │   ├── ranking.rs     Viterbi k-best candidate ranking
 │   │   ├── ngram.rs       N-gram language model (Stupid Backoff)
@@ -49,14 +49,15 @@ thaime/
 │   ├── thaime_dictgen/    Dictionary compiler (JSON → binary trie)
 │   └── thaime_wasm/       wasm-bindgen wrapper for browser
 ├── web/                   React + TypeScript web demo
-├── frontends/
-│   └── ibus/              IBus engine frontend (planned)
 ├── data/
-│   ├── dict/              Compiled dictionary binaries (versioned)
-│   └── input/             Source JSON + n-gram binaries
-├── build.sh               Full build pipeline script
+│   ├── dict/              Compiled dictionary binaries (fetched, not committed)
+│   └── input/             Source JSON + n-gram binaries (fetched, not committed)
+├── scripts/               fetch-data.sh (data), build-web.sh (web demo)
+├── docs/                  Architecture, algorithm, build guide, plans
 └── tests/                 Regression test data (TOML)
 ```
+
+An IBus frontend for Linux is planned (see [plan 002](docs/plans/002-linux-alpha.md)).
 
 Dictionary and n-gram data is generated from the companion [thaime-nlp](https://github.com/mimocha/thaime-nlp) repository, which handles NLP research, corpus processing, and romanization variant generation.
 
@@ -65,12 +66,14 @@ Dictionary and n-gram data is generated from the companion [thaime-nlp](https://
 Requires the stable Rust toolchain. Install via [rustup](https://rustup.rs/) if needed.
 
 ```bash
-# Quick start (dictionary binaries are committed to the repo)
+# Fetch the pinned dictionary and n-gram data (needs curl; no GitHub login)
+./scripts/fetch-data.sh
+
 cargo build --workspace
 cargo test --workspace
 
-# Full pipeline: regenerate dict, build workspace, WASM, and web demo
-./build.sh
+# Web demo assets: WASM build + copy data into web/public/dict/
+./scripts/build-web.sh
 ```
 
 See the [Build Guide](docs/build-guide.md) for prerequisites, feature flags, WASM setup, and CI details.
@@ -122,7 +125,7 @@ The TUI is a ratatui-based visual debugger with four modes:
 |----------|-------------|
 | [Architecture](docs/architecture.md) | High-level architecture, module map, data flow, two-repo design |
 | [Algorithm](docs/algorithm.md) | Engine internals: trie, lattice, Viterbi, n-gram, scoring formulas |
-| [Build Guide](docs/build-guide.md) | Prerequisites, `build.sh`, dict generation, WASM, CI/CD |
+| [Build Guide](docs/build-guide.md) | Prerequisites, data fetch, dict generation, WASM, CI/CD |
 | [Installation](docs/installation.md) | Installation options and planned frontend support |
 | [Plans](docs/plans/README.md) | Design plans for non-trivial changes: workflow, front matter, index |
 
@@ -137,15 +140,6 @@ THAIME is in **pre-alpha** - the core engine works, but packaging and platform s
 - Interactive CLI and TUI debugger for development
 - Web demo via WebAssembly (client-side, no server)
 
-### Q4 2026 - Crowdsourced typing demo
-
-The web demo becomes a single page for both trying THAIME and helping improve it:
-
-- Type generated or your own Thai text, MonkeyType-style, with THAIME or in raw romanization
-- Mark and submit misconversions
-- Share how you naturally romanize Thai words, to improve dictionary and ranking data
-- Contributing is opt-in; see [the plan](docs/plans/001-crowdsourcing-demo.md)
-
 ### End of 2026 - Linux alpha
 
 First packaged release for early adopters on Linux:
@@ -154,6 +148,15 @@ First packaged release for early adopters on Linux:
 - **Ubuntu** via [Launchpad PPA](https://launchpad.net/)
 - IBus frontend with basic compose/commit workflow
 - Feedback-driven iteration on dictionary coverage and ranking quality
+
+### After the alpha - Crowdsourced typing demo
+
+The web demo becomes a single page for both trying THAIME and helping improve it:
+
+- Type generated or your own Thai text, MonkeyType-style, with THAIME or in raw romanization
+- Mark and submit misconversions
+- Share how you naturally romanize Thai words, to improve dictionary and ranking data
+- Contributing is opt-in; see [the plan](docs/plans/001-crowdsourcing-demo.md)
 
 ### Q1 2027 - Wider Linux beta
 
