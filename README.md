@@ -124,6 +124,7 @@ The TUI is a ratatui-based visual debugger with four modes:
 | [Algorithm](docs/algorithm.md) | Engine internals: trie, lattice, Viterbi, n-gram, scoring formulas |
 | [Build Guide](docs/build-guide.md) | Prerequisites, `build.sh`, dict generation, WASM, CI/CD |
 | [Installation](docs/installation.md) | Installation options and planned frontend support |
+| [Plans](docs/plans/README.md) | Design plans for non-trivial changes: workflow, front matter, index |
 
 ## Roadmap
 
@@ -143,7 +144,7 @@ The web demo becomes a single page for both trying THAIME and helping improve it
 - Type generated or your own Thai text, MonkeyType-style, with THAIME or in raw romanization
 - Mark and submit misconversions
 - Share how you naturally romanize Thai words, to improve dictionary and ranking data
-- Contributing is opt-in; see [the plan](docs/plans/crowdsourcing-demo.md)
+- Contributing is opt-in; see [the plan](docs/plans/001-crowdsourcing-demo.md)
 
 ### End of 2026 - Linux alpha
 
