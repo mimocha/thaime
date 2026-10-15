@@ -420,10 +420,17 @@ Thai in the WS5c apps; the PPA package installs on Ubuntu 26.04.
 ## Open Questions
 
 1. **Should thaime-nlp's public releases keep shipping the raw n-gram TSVs?** The
-   `ngrams_{1,2,3}_merged_raw.tsv.gz` assets appear to be unfiltered (count filters are
-   applied only when encoding the binary), so count-1 trigrams can reproduce source
-   text fragments. Options: stop publishing them, publish filtered versions, or keep
-   them. Owner: maintainer, before the next thaime-nlp release.
+   `ngrams_{1,2,3}_merged_raw.tsv.gz` assets (~79 MB of the ~87 MB v1.0.0 release) are
+   unnormalized counts merged across corpora, Thai tokens only, already filtered at
+   `count >= 2` by the count stage (`pipelines/ngram/count.py`). They are not
+   sufficient to rebuild the shipped binary: scoring also needs the normalized
+   `ngrams_{1,2,3}_merged.tsv` and the per-corpus unigram files, which are not
+   released. The engine packages use only the trie dataset and the n-gram binary, so
+   the TSVs never enter distro packages.
+
+   **Decision (2026-10-15):** keep publishing them, under the CC-BY-SA-4.0 data license
+   with the attribution NOTICE (D12). Documenting what they are, and whether to close
+   the reproducibility gap, is handled in thaime-nlp.
 
 2. **Web demo input quirks: which become intended `Session` behaviour?** Deferred to the
    WS2 child plan. Current behaviour:
@@ -471,6 +478,8 @@ One branch per workstream, off `dev`, merged into `dev` locally:
   deleted rather than patched (D8, F11 null check dropped); runtime loading moved from
   WS3 into WS1 (D10); best-effort output for untileable input moved from WS4 into WS2;
   D3 resolved to discard; D7 resolved to three modes.
+- 2026-10-15: Open question 1 resolved (keep raw n-gram TSVs). Corrected the earlier
+  claim that they were unfiltered: the count stage already drops n-grams with count 1.
 
 ## Deviations
 
