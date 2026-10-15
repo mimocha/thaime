@@ -1,8 +1,25 @@
-# Plan: Crowdsourced Typing Demo
+---
+id: "001"
+title: Crowdsourced typing demo
+status: accepted
+created: 2026-09-29
+updated: 2026-10-15
+authors:
+  - Chawit Leosrisook
+  - Claude (agent)
+parent: null
+milestone: post-alpha
+supersedes: []
+superseded_by: null
+related:
+  - docs/plans/002-linux-alpha.md
+---
 
-**Status:** Design locked (2026-09-29); implementation not started
-**Target:** Q4 2026, ahead of the end-of-2026 Linux alpha
-**Author:** Chawit Leosrisook (maintainer) + Claude (agent)
+# Plan 001: Crowdsourced typing demo
+
+**Scheduling:** design locked 2026-09-29; implementation follows the Linux alpha
+(re-prioritized 2026-10-15, see [plan 002](002-linux-alpha.md)).
+
 **Data side:** thaime-nlp `docs/change-plan-12-romanization-weights.md`
 
 ## Summary
@@ -205,7 +222,7 @@ origin).
 | Engine (Rust/WASM) | Markov generator sampling from the loaded n-gram data, with need-list boosting |
 | Engine (Rust/WASM) | Thai-side longest-match segmentation over the vocabulary, for custom targets |
 | Engine (Rust/WASM) | Lookup helpers for contributor annotations: is a Latin string a key for a word, and the word's rank for that Latin |
-| Engine (Rust/WASM) | Commit log with Latin spans (builds on the existing `commit_partial`) |
+| Engine (Rust/WASM) | Commit log with Latin spans, from the `Session` commit events introduced by [plan 002](002-linux-alpha.md) (WS2, WS7); replaces the earlier idea of building on `commit_partial`, which plan 002 removes |
 | Web | Target box (generator / custom with editable boundaries), input box (THAIME / contributor), contribute toggle and consent pop-up, batching and queue |
 | Worker | Cloudflare Worker + D1 schema, Turnstile check, validation, rate limiting |
 | Engine, later | Romanization-weight term in edge cost, once CP12 ships weighted data |
