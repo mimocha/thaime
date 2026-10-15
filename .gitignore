@@ -2,9 +2,6 @@
 /target/
 **/*.rs.bk
 
-# Generated
-thaime.h
-
 # IDE
 .idea/
 .vscode/

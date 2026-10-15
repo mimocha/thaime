@@ -2,9 +2,7 @@
 
 //! THAIME Engine - Core library for the Thai Input Method Engine.
 //!
-//! This crate provides:
-//! - A Rust API for use by other workspace crates (e.g., thaime_cli)
-//! - A C ABI for use by framework frontends (IBus, Fcitx5, etc.)
+//! Rust API used by the workspace frontends (CLI, TUI, WASM).
 
 pub mod config;
 pub mod context;
@@ -21,15 +19,14 @@ use trie::Dictionary;
 
 /// Input mode determines how keystrokes are processed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-#[repr(u8)]
 pub enum InputMode {
     /// Latin romanization → Thai candidates via dictionary/lattice/Viterbi.
     #[default]
-    Romanization = 0,
+    Romanization,
     /// Standard Thai keyboard layout (TIS 820-2538). Direct 1:1 key→Thai mapping.
-    Kedmanee = 1,
+    Kedmanee,
     /// Pass-through Latin. Characters output as-is.
-    Latin = 2,
+    Latin,
 }
 
 /// Result of processing a key through the engine.
@@ -47,7 +44,6 @@ pub enum KeyResult {
 /// The top-level engine handle.
 ///
 /// Wraps an [`InputContext`] and provides the public Rust API.
-/// Frontends using the C ABI receive an opaque pointer to this struct.
 #[derive(Default)]
 pub struct ThaiMeEngine {
     context: Option<InputContext>,
@@ -268,148 +264,6 @@ impl ThaiMeEngine {
     }
 }
 
-// ---------------------------------------------------------------------------
-// C ABI exports
-// ---------------------------------------------------------------------------
-
-/// Create a new engine instance with the embedded dictionary.
-/// Returns a pointer that must be freed with `thaime_engine_free()`.
-#[cfg(feature = "embed-dict")]
-#[no_mangle]
-pub extern "C" fn thaime_engine_new() -> *mut ThaiMeEngine {
-    let engine = Box::new(ThaiMeEngine::new());
-    Box::into_raw(engine)
-}
-
-/// Free an engine instance.
-///
-/// # Safety
-/// `engine` must be a pointer returned by `thaime_engine_new()` and must
-/// not be used after this call.
-#[no_mangle]
-pub unsafe extern "C" fn thaime_engine_free(engine: *mut ThaiMeEngine) {
-    if !engine.is_null() {
-        drop(Box::from_raw(engine));
-    }
-}
-
-/// Process a key press. Returns true if the engine consumed the key.
-///
-/// Currently accepts ASCII alphabetic characters (a-z, A-Z) as input
-/// to the romanization buffer.
-///
-/// # Safety
-/// `engine` must be a valid pointer from `thaime_engine_new()`.
-#[no_mangle]
-pub unsafe extern "C" fn thaime_process_key(
-    engine: *mut ThaiMeEngine,
-    keyval: u32,
-    _keycode: u32,
-    _modifiers: u32,
-) -> bool {
-    let engine = &mut *engine;
-    // Interpret keyval as a Unicode code point
-    if let Some(ch) = char::from_u32(keyval) {
-        engine.push_key(ch)
-    } else {
-        false
-    }
-}
-
-/// Reset the engine state, clearing any in-progress input.
-///
-/// # Safety
-/// `engine` must be a valid pointer from `thaime_engine_new()`.
-#[no_mangle]
-pub unsafe extern "C" fn thaime_reset(engine: *mut ThaiMeEngine) {
-    if !engine.is_null() {
-        let engine = &mut *engine;
-        engine.reset();
-    }
-}
-
-/// Clear the committed context history.
-///
-/// Call this when the text field loses focus, the cursor jumps, or the
-/// application switches. Does not affect the current input buffer.
-///
-/// # Safety
-/// `engine` must be a valid pointer from `thaime_engine_new()`.
-#[no_mangle]
-pub unsafe extern "C" fn thaime_clear_context(engine: *mut ThaiMeEngine) {
-    if !engine.is_null() {
-        let engine = &mut *engine;
-        engine.clear_context();
-    }
-}
-
-/// Get the current input mode.
-///
-/// Returns: 0 = Romanization, 1 = Kedmanee, 2 = Latin.
-///
-/// # Safety
-/// `engine` must be a valid pointer from `thaime_engine_new()`.
-#[no_mangle]
-pub unsafe extern "C" fn thaime_get_mode(engine: *const ThaiMeEngine) -> u8 {
-    if engine.is_null() {
-        return 0;
-    }
-    (*engine).mode() as u8
-}
-
-/// Set the input mode. Resets any active composition when the mode changes.
-///
-/// `mode`: 0 = Romanization, 1 = Kedmanee, 2 = Latin. Invalid values are ignored.
-///
-/// # Safety
-/// `engine` must be a valid pointer from `thaime_engine_new()`.
-#[no_mangle]
-pub unsafe extern "C" fn thaime_set_mode(engine: *mut ThaiMeEngine, mode: u8) {
-    if engine.is_null() {
-        return;
-    }
-    let engine = &mut *engine;
-    if let Some(m) = match mode {
-        0 => Some(InputMode::Romanization),
-        1 => Some(InputMode::Kedmanee),
-        2 => Some(InputMode::Latin),
-        _ => None,
-    } {
-        engine.set_mode(m);
-    }
-}
-
-/// Process a key press with mode-aware behavior.
-///
-/// Returns:
-/// - `0` — key rejected (not handled)
-/// - `1` — key consumed into composition buffer (Romanization mode)
-/// - `2+` — committed character as a Unicode code point (Kedmanee/Latin mode)
-///
-/// # Safety
-/// `engine` must be a valid pointer from `thaime_engine_new()`.
-#[no_mangle]
-pub unsafe extern "C" fn thaime_process_key_ex(
-    engine: *mut ThaiMeEngine,
-    keyval: u32,
-    _keycode: u32,
-    _modifiers: u32,
-) -> u32 {
-    if engine.is_null() {
-        return 0;
-    }
-    let engine = &mut *engine;
-    if let Some(ch) = char::from_u32(keyval) {
-        match engine.process_key(ch) {
-            KeyResult::Rejected => 0,
-            KeyResult::Consumed => 1,
-            KeyResult::Committed(c) => c as u32,
-        }
-    } else {
-        0
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -476,21 +330,6 @@ mod tests {
         let engine = ThaiMeEngine::default();
         assert!(engine.preedit().is_empty());
         assert!(engine.candidates().is_empty());
-    }
-
-    #[test]
-    fn test_c_abi_lifecycle() {
-        // Test that C ABI functions work with a manually constructed engine
-        let engine = Box::into_raw(Box::new(make_engine()));
-        assert!(!engine.is_null());
-        unsafe {
-            assert!(thaime_process_key(engine, b'm' as u32, 0, 0));
-            assert!(thaime_process_key(engine, b'a' as u32, 0, 0));
-            assert!(thaime_process_key(engine, b'i' as u32, 0, 0));
-            thaime_clear_context(engine);
-            thaime_reset(engine);
-            thaime_engine_free(engine);
-        }
     }
 
     // ── Mode switching tests ────────────────────────────────────────
@@ -568,31 +407,5 @@ mod tests {
         // Non-printable rejected
         assert_eq!(engine.process_key('\t'), KeyResult::Rejected);
         assert_eq!(engine.process_key('\n'), KeyResult::Rejected);
-    }
-
-    #[test]
-    fn test_c_abi_mode_functions() {
-        let engine = Box::into_raw(Box::new(make_engine()));
-        unsafe {
-            assert_eq!(thaime_get_mode(engine), 0); // Romanization
-
-            thaime_set_mode(engine, 1); // Kedmanee
-            assert_eq!(thaime_get_mode(engine), 1);
-
-            // Process key in Kedmanee mode
-            let result = thaime_process_key_ex(engine, b'a' as u32, 0, 0);
-            assert_eq!(result, 'ฟ' as u32);
-
-            thaime_set_mode(engine, 2); // Latin
-            assert_eq!(thaime_get_mode(engine), 2);
-            let result = thaime_process_key_ex(engine, b'a' as u32, 0, 0);
-            assert_eq!(result, 'a' as u32);
-
-            // Invalid mode ignored
-            thaime_set_mode(engine, 99);
-            assert_eq!(thaime_get_mode(engine), 2); // Still Latin
-
-            thaime_engine_free(engine);
-        }
     }
 }

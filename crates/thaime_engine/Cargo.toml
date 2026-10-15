@@ -14,13 +14,6 @@ default = ["embed-dict"]
 embed-dict = []
 embed-ngram = []
 
-[lib]
-name = "thaime_engine"
-crate-type = ["lib", "cdylib", "staticlib"]
-
-[build-dependencies]
-cbindgen = "0.29"
-
 [dependencies]
 yada = "0.5"
 serde = { version = "1", features = ["derive"] }
