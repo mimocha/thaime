@@ -3,7 +3,7 @@ id: "002"
 title: Linux alpha (IBus engine, COPR/PPA packages)
 status: accepted
 created: 2026-10-15
-updated: 2026-10-15
+updated: 2026-10-24
 authors:
   - Chawit Leosrisook
   - Claude (agent)
@@ -305,6 +305,46 @@ string. If not achieved within the time-box, report findings and revisit D6.
 Throwaway code; it lives on a spike branch and is not merged. Findings feed the WS5
 child plan.
 
+**Status (2026-10-24): passed on KDE Plasma Wayland; GNOME live-USB test pending.**
+The spike is on `spike/002-ws5a-ibus` (`crates/thaime_ibus_spike/`, with `FINDINGS.md`
+and `LIVE-TEST.md`). It answers every printable key with `CommitText("สวัสดี")` plus a
+three-item `IBusLookupTable`; digits and clicks commit a candidate, Escape hides it.
+
+- Headless test (`scripts/headless-test.sh`): a private `ibus-daemon` loads the
+  component, the engine registers, and synthetic key events produce the expected
+  `CommitText`, `UpdateLookupTable`, and `HideLookupTable` signals; Ctrl, Space,
+  Escape, and key releases pass through. Confirmed against ibus 1.5.34: `IBusText`
+  `(sa{sv}sv)` needs an attribute list even when empty; `IBusLookupTable`
+  `(sa{sv}uubbiavav)`; `ProcessKeyEvent(uuu)→b`; the engine must export its objects
+  before requesting the component's bus name.
+- Live test on Fedora 44 KDE Plasma 6.7.5 Wayland (IBus started by KWin through a
+  private "IBus Wayland" launcher; reverted afterwards): zenity (GTK4), KWrite (Qt6),
+  and Firefox 158 (GTK3) all received the commit; the candidate window appeared at the
+  cursor; digit selection, clicks, Escape, and focus loss behaved as expected;
+  Ctrl+A/C/V worked. The engine received `Enable`, `Disable`, `Destroy`,
+  `SetCapabilities` (`0x29` and `0xa9`), and `CandidateClicked` from real clients.
+- D6 stands. Revisit only if the GNOME GTK4 test fails because of the engine.
+
+Findings for the WS5 child plan:
+
+- While candidates are shown, Enter, Up/Down, and Ctrl shortcuts reached the app (the
+  spike handles only letters, digits, and Escape): KWrite inserted a newline, zenity's
+  arrows moved focus to its buttons, Firefox's arrows moved through URL suggestions,
+  and Konsole's Ctrl+U cleared the line. The candidate window stayed open in each case.
+  WS5b must return `handled = true` for navigation keys while composing, and decide
+  what a passed-through Ctrl/Alt/Super key does to an open composition (Open
+  Question 2 covers which candidate Enter commits).
+- Switching KWrite document tabs, or Firefox tabs between two URL bars, sent the engine
+  no `FocusOut`, `Reset`, or `Disable`: the candidate window stayed open and the next
+  commit went into the other document. D3 relies on those calls. Untested with a
+  visible preedit, which the toolkit may reset itself; WS5c adds "switch tab
+  mid-composition" for KWrite and Firefox.
+- The IBus D-Bus interface is not a documented stable API (libibus is), so the headless
+  test moves to CI with WS5b.
+- Not yet exercised: preedit text and attributes, properties (D7 mode switch),
+  `PageUp`/`PageDown`/`CursorUp`/`CursorDown`, GNOME, Chromium/Electron, XWayland, and
+  IBus versions other than 1.5.34.
+
 ### WS1 — Engine/Session split and runtime loading
 
 Child plan required. Scope:
@@ -491,6 +531,9 @@ One branch per workstream, off `dev`, merged into `dev` locally:
   attached to the existing v1.0.0 release (no new data release), the license covers
   release artifacts and corpus-derived benchmarks, and no release-script license guard.
 - 2026-10-15: The maintainer approved curl-only data fetching.
+- 2026-10-24: The maintainer chose to run WS5a as a sandboxed spike with a headless
+  test, then live tests by hand: KDE Plasma on the dev host first, GNOME from a
+  Fedora 44 Workstation live USB later.
 
 ## Deviations
 
@@ -498,6 +541,9 @@ One branch per workstream, off `dev`, merged into `dev` locally:
   gh→curl fallback. Release assets are public; an installed but unauthenticated `gh`
   fails where `curl` works; one path is simpler. The `GH_TOKEN` environment variable
   was removed from `ci.yml` and `deploy-web.yml`. Approved by the maintainer.
+- 2026-10-24: WS5a was first tested live on KDE Plasma Wayland, not GNOME, because the
+  dev host runs Plasma. The "Done when" criterion (GTK4 on GNOME Wayland) is unchanged
+  and waits for the live-USB test in `LIVE-TEST.md` Part B.
 
 ## References
 
