@@ -3,7 +3,7 @@ id: "002"
 title: Linux alpha (IBus engine, COPR/PPA packages)
 status: accepted
 created: 2026-10-15
-updated: 2026-10-24
+updated: 2026-10-25
 authors:
   - Chawit Leosrisook
   - Claude (agent)
@@ -305,7 +305,8 @@ string. If not achieved within the time-box, report findings and revisit D6.
 Throwaway code; it lives on a spike branch and is not merged. Findings feed the WS5
 child plan.
 
-**Status (2026-10-24): passed on KDE Plasma Wayland; GNOME live-USB test pending.**
+**Status: done (2026-10-24).** Passed on KDE Plasma Wayland and on GNOME Wayland, which
+meets "Done when".
 The spike is on `spike/002-ws5a-ibus` (`crates/thaime_ibus_spike/`, with `FINDINGS.md`
 and `LIVE-TEST.md`). It answers every printable key with `CommitText("สวัสดี")` plus a
 three-item `IBusLookupTable`; digits and clicks commit a candidate, Escape hides it.
@@ -323,7 +324,15 @@ three-item `IBusLookupTable`; digits and clicks commit a candidate, Escape hides
   cursor; digit selection, clicks, Escape, and focus loss behaved as expected;
   Ctrl+A/C/V worked. The engine received `Enable`, `Disable`, `Destroy`,
   `SetCapabilities` (`0x29` and `0xa9`), and `CandidateClicked` from real clients.
-- D6 stands. Revisit only if the GNOME GTK4 test fails because of the engine.
+- Live test on a Fedora 44 Workstation live USB (GNOME Shell/Mutter 50.0, ibus
+  1.5.34~rc1, GTK4 4.22.1; engine installed under `/usr`, added as an input source,
+  selected with Super+Space): GNOME Text Editor 50 (GTK4) received the commit, which
+  meets "Done when". Firefox 150 (GTK3), Ptyxis, the Files search field, and
+  Calculator behaved the same. Candidate window at the cursor, digit selection, clicks,
+  Escape, focus loss, and Ctrl+A/C/V all worked. The engine log (1,945 lines) shows no
+  errors; clients sent `SetCapabilities` `0x9` and `0x29` (no synchronous-key-handling
+  bit, unlike Plasma's `0xa9`), `SetCursorLocation`, and `ContentType`.
+- D6 stands: the engine works with GTK4 on GNOME Wayland.
 
 Findings for the WS5 child plan:
 
@@ -334,16 +343,27 @@ Findings for the WS5 child plan:
   WS5b must return `handled = true` for navigation keys while composing, and decide
   what a passed-through Ctrl/Alt/Super key does to an open composition (Open
   Question 2 covers which candidate Enter commits).
-- Switching KWrite document tabs, or Firefox tabs between two URL bars, sent the engine
-  no `FocusOut`, `Reset`, or `Disable`: the candidate window stayed open and the next
-  commit went into the other document. D3 relies on those calls. Untested with a
-  visible preedit, which the toolkit may reset itself; WS5c adds "switch tab
-  mid-composition" for KWrite and Firefox.
+- Switching tabs closes the candidate window on GNOME but not on Plasma. On GNOME,
+  switching GNOME Text Editor or Firefox tabs closed it; in the log, every hide not
+  caused by a commit or key followed a `Reset` (16 of 66 hides; 157 `Reset` calls in
+  total). On Plasma, switching KWrite document tabs, or Firefox tabs between two URL
+  bars, sent no `FocusOut`, `Reset`, or `Disable`: the candidate window stayed open
+  and the next commit went into the other document. D3 relies on those calls.
+  Untested with a visible preedit, which Qt may reset itself; WS5c adds "switch tab
+  mid-composition" for KWrite and Firefox on Plasma.
+- GNOME clients send `Reset` often, typically in bursts around focus changes, so under
+  D3 these discard an unfinished composition.
+- Space did not select a candidate (it passed through), and keypad digits (`KP_1`…,
+  or `KP_End`… with NumLock off) were not treated as digits. WS5b maps keypad digits
+  to `Key::Digit`; Space follows the WS2 key behaviour.
+- Real key events carry NumLock (`Mod2`, `0x10`) in the modifier state on GNOME. The
+  "pass through keys with Ctrl/Alt/Super held" rule must ignore NumLock and CapsLock,
+  as the spike did.
 - The IBus D-Bus interface is not a documented stable API (libibus is), so the headless
   test moves to CI with WS5b.
 - Not yet exercised: preedit text and attributes, properties (D7 mode switch),
-  `PageUp`/`PageDown`/`CursorUp`/`CursorDown`, GNOME, Chromium/Electron, XWayland, and
-  IBus versions other than 1.5.34.
+  `PageUp`/`PageDown`/`CursorUp`/`CursorDown`, Chromium/Electron, XWayland, Ubuntu,
+  and IBus versions other than 1.5.34 and 1.5.34~rc1.
 
 ### WS1 — Engine/Session split and runtime loading
 
@@ -534,6 +554,7 @@ One branch per workstream, off `dev`, merged into `dev` locally:
 - 2026-10-24: The maintainer chose to run WS5a as a sandboxed spike with a headless
   test, then live tests by hand: KDE Plasma on the dev host first, GNOME from a
   Fedora 44 Workstation live USB later.
+- 2026-10-25: WS5a done. GNOME live-USB results recorded; D6 confirmed by the spike.
 
 ## Deviations
 
